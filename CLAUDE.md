@@ -1,16 +1,18 @@
 # VHDL FSM Visualizer — Project Guide
 
 VS Code extension that detects finite state machines in VHDL and renders an interactive SVG
-diagram. ~4 source files at repo root (no build step needed to read them).
+diagram. Source files in `src/` folder (no build step needed to read them).
+
+**For detailed specification, architecture design, and phased roadmap, see [`docs/SPEC_AND_ARCHITECTURE.md`](../docs/SPEC_AND_ARCHITECTURE.md).**
 
 ## Architecture
-- `parser.ts` — `VhdlFsmParser.parse(source)` → `ParseResult { fsms, errors }`. Core logic:
+- `src/parser.ts` — `VhdlFsmParser.parse(source)` → `ParseResult { fsms, errors }`. Core logic:
   normalise source (lowercase + comment-pad to preserve char offsets), extract enum types,
   group FSM signals **by enum type**, then for each `case <selector> is` recursively parse the
   arm bodies (`parseStatements`) into `FsmTransition { from, to, condition, line }`.
-- `panel.ts` — `FsmPanel` builds the webview HTML: circular layout, SVG edges/states, the
+- `src/panel.ts` — `FsmPanel` builds the webview HTML: circular layout, SVG edges/states, the
   click-to-select glow/dim overlay, the `...` condition pills + tooltip, and the Transitions table.
-- `extension.ts` — VS Code activation, `showDiagram` command, auto-refresh on save.
+- `src/extension.ts` — VS Code activation, `showDiagram` command, auto-refresh on save.
 
 ## Key invariants / gotchas
 - Normalisation pads comments with spaces so `normalised[i]` aligns with `originalSource[i]`;
@@ -22,8 +24,7 @@ diagram. ~4 source files at repo root (no build step needed to read them).
   intentional. UI additions must be additive.
 
 ## Build & test
-- `tsconfig.json` has a stale `rootDir: ./src` while sources live at repo root — the main
-  `compile` script can't run as-is (known issue, see plan). Tests use `tsconfig.test.json` + `tsx`.
+- `tsconfig.json` uses `rootDir: ./src` with TypeScript sources in `src/`. Main build: `npm run compile`. Tests use `tsconfig.test.json` + `tsx`.
 - Run parser tests: `npm test` (runs `test/run.ts` over `test/fixtures/*.vhd`, comparing against
   the `-- EXPECT from -> to | condition` headers). **Run this as a regression gate after any
   parser change.**
