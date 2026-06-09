@@ -45,3 +45,12 @@ stay green, and the phase's own new ones turn green (removed from KNOWN_FAILS).
 
 This protects against accidental regressions in a large refactor (especially Phase 1's recursive
 parser rewrite).
+
+## Versioning
+Before committing any changes, **increment the version in `package.json`**. Use semantic versioning:
+- **Patch** (0.3.x): bug fixes, small improvements that don't change functionality.
+- **Minor** (0.x.0): new features, phases of the roadmap (e.g., Phase 1 → 0.3.0, Phase 2 → 0.4.0).
+- **Major** (x.0.0): breaking changes to the API or parser output format.
+
+The version is used for VSIX packaging (`build-vsix.ps1`/`build-vsix.bat`), so each build
+must have a distinct version to avoid conflicts when testing locally.
