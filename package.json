@@ -2,7 +2,7 @@
   "name": "vhdl-fsm-visualizer",
   "displayName": "VHDL FSM Visualizer",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -21,7 +21,7 @@
     "onLanguage:vhdl",
     "onCommand:vhdl-fsm-visualizer.showDiagram"
   ],
-  "main": "./out/src/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {

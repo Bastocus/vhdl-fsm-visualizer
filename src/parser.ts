@@ -70,11 +70,16 @@ export class VhdlFsmParser {
       const fsmSignals       = this.extractFsmSignals(enumTypes);
 
       for (const sig of fsmSignals) {
+        const transitions = this.extractTransitions(sig);
+        // A signal that is never *assigned* a state (only read as a `case` selector,
+        // e.g. an enum used purely to pick a branch) yields no transitions and is not
+        // a state machine — skip it so it doesn't show up as an empty FSM tab.
+        if (transitions.length === 0) continue;
+
         const states: FsmState[] = sig.states.map(s => ({
           name: s,
           line: this.findStateLine(s),
         }));
-        const transitions = this.extractTransitions(sig);
         result.fsms.push({
           signalName: sig.name,
           typeName:   sig.typeName,
