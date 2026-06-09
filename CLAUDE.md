@@ -25,10 +25,15 @@ diagram. Source files in `src/` folder (no build step needed to read them).
 
 ## Build & test
 - `tsconfig.json` uses `rootDir: ./src` with TypeScript sources in `src/`. Main build: `npm run compile`. Tests use `tsconfig.test.json` + `tsx`.
-- Run parser tests: `npm test` (runs `test/run.ts` over `test/fixtures/*.vhd`, comparing against
-  the `-- EXPECT from -> to | condition` headers). **Run this as a regression gate after any
-  parser change.**
+- **Automated before every commit** (see Versioning & commit workflow): compile + test verify correctness.
 - Add a fixture for every new corner case before/while fixing it.
+
+### Manual VSIX builds (for local testing)
+Use `build-vsix.ps1` (PowerShell) or `build-vsix.bat` (Command Prompt) to package the extension locally:
+```powershell
+.\build-vsix.ps1
+```
+This creates a `.vsix` file you can install in VS Code via **Extensions → Install from VSIX**. Version in `package.json` determines the VSIX filename, so test against the latest version.
 
 ## Testing strategy
 Each phase includes:
@@ -46,11 +51,17 @@ stay green, and the phase's own new ones turn green (removed from KNOWN_FAILS).
 This protects against accidental regressions in a large refactor (especially Phase 1's recursive
 parser rewrite).
 
-## Versioning
-Before committing any changes, **increment the version in `package.json`**. Use semantic versioning:
-- **Patch** (0.3.x): bug fixes, small improvements that don't change functionality.
-- **Minor** (0.x.0): new features, phases of the roadmap (e.g., Phase 1 → 0.3.0, Phase 2 → 0.4.0).
-- **Major** (x.0.0): breaking changes to the API or parser output format.
+## Versioning & commit workflow
+Before each commit, the assistant should:
+1. **Bump the version** in `package.json` using semantic versioning:
+   - **Patch** (0.3.x): bug fixes, small improvements that don't change functionality.
+   - **Minor** (0.x.0): new features, phases of the roadmap (e.g., Phase 1 → 0.3.0, Phase 2 → 0.4.0).
+   - **Major** (x.0.0): breaking changes to the API or parser output format.
+2. **Build & verify**:
+   - `npm install` (sync `package-lock.json` with the version bump)
+   - `npm run compile` (verify TypeScript compiles without errors)
+   - `npm test` (run regression suite; all previously-passing fixtures must stay green)
+3. **Commit** once all checks pass. If any check fails, fix the issue before committing.
 
-The version is used for VSIX packaging (`build-vsix.ps1`/`build-vsix.bat`), so each build
-must have a distinct version to avoid conflicts when testing locally.
+The version is also used for VSIX packaging (`build-vsix.ps1`/`build-vsix.bat`), so
+each distinct build must have a new version to avoid conflicts when testing locally.
