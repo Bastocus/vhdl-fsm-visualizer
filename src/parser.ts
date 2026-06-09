@@ -1,7 +1,17 @@
 /**
- * VHDL FSM Parser  v0.3  (Phase 1 — recursive block parser)
+ * VHDL FSM Parser  v0.4  (Phase 2 — two-process FSM support)
  *
- * Changes vs v0.2:
+ * Changes vs v0.3 (Phase 2, Part B):
+ *  - FSMs are keyed by enum **type**, not by a single signal. All signals of the
+ *    same enum type (e.g. `current_state`, `next_state`) are grouped together, so a
+ *    two-process design (`case current_state is … next_state <= …`) renders as ONE
+ *    merged FSM instead of two empty ones.
+ *  - `extractFsmSignals` now groups by type and handles comma-separated declarations
+ *    (`signal current_state, next_state : state_t;`).
+ *  - The `case` header may select on any signal of the group; assignments to any
+ *    signal of the group count as state transitions. `signalName` is the selector.
+ *
+ * Earlier changes (v0.3, Phase 1 — recursive block parser):
  *  - The flatten-and-walk machinery (tokeniseBlock / walkTokens / flat Token list)
  *    is replaced by a recursive-descent walker, `parseStatements`, that descends
  *    into nested `if/elsif/else` and nested `case` constructs.
@@ -22,7 +32,13 @@
 
 export interface FsmState      { name: string; line: number; }
 export interface FsmTransition { from: string; to: string; condition: string; line: number; }
-export interface FsmSignal     { name: string; typeName: string; states: string[]; line: number; }
+
+/**
+ * A group of signals that share one enum **type** (e.g. `current_state` and
+ * `next_state` of `state_t`). Two-process FSMs case-select on one signal and assign
+ * another, so the parser treats the whole group as a single state machine.
+ */
+export interface FsmSignal     { name: string; names: string[]; typeName: string; states: string[]; line: number; }
 
 export interface ParsedFsm {
   signalName: string;
@@ -70,10 +86,10 @@ export class VhdlFsmParser {
       const fsmSignals       = this.extractFsmSignals(enumTypes);
 
       for (const sig of fsmSignals) {
-        const transitions = this.extractTransitions(sig);
-        // A signal that is never *assigned* a state (only read as a `case` selector,
-        // e.g. an enum used purely to pick a branch) yields no transitions and is not
-        // a state machine — skip it so it doesn't show up as an empty FSM tab.
+        const { transitions, selector } = this.extractTransitions(sig);
+        // An enum type that is never *assigned* a state (only read as a `case`
+        // selector, e.g. an enum used purely to pick a branch) yields no transitions
+        // and is not a state machine — skip it so it doesn't show as an empty FSM tab.
         if (transitions.length === 0) continue;
 
         const states: FsmState[] = sig.states.map(s => ({
@@ -81,7 +97,9 @@ export class VhdlFsmParser {
           line: this.findStateLine(s),
         }));
         result.fsms.push({
-          signalName: sig.name,
+          // The case-selector signal names the FSM; fall back to the first signal of
+          // the type when no `case` header matched (should not happen if it emitted).
+          signalName: selector ?? sig.name,
           typeName:   sig.typeName,
           states,
           transitions,
@@ -140,46 +158,62 @@ export class VhdlFsmParser {
     return result;
   }
 
-  // ── FSM signals ───────────────────────────────────────────────────────────
+  // ── FSM signals (grouped by enum type) ────────────────────────────────────
+  // One group per enum type, collecting *all* signals of that type so two-process
+  // designs (`current_state` selected, `next_state` assigned) merge into one FSM.
+  // The declaration regex captures comma lists (`signal a, b : state_t;`).
   private extractFsmSignals(enumTypes: Map<string, string[]>): FsmSignal[] {
-    const signals: FsmSignal[] = [];
-    const re = /\bsignal\s+(\w+)\s*:\s*(\w+)(?:\s*:=\s*\w+)?\s*;/gi;
+    const groups = new Map<string, FsmSignal>();   // key = type name (lowercase)
+    const re = /\bsignal\s+([\w\s,]+?)\s*:\s*(\w+)(?:\s*:=\s*[^;]+?)?\s*;/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(this.originalSource)) !== null) {
-      const sigName  = m[1].trim();
       const typeName = m[2].trim();
-      if (enumTypes.has(typeName.toLowerCase())) {
-        signals.push({
-          name:     sigName,
+      const key      = typeName.toLowerCase();
+      if (!enumTypes.has(key)) continue;
+      const names = m[1].split(',').map(s => s.trim()).filter(Boolean);
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          name:     names[0],
+          names:    [],
           typeName,
-          states:   enumTypes.get(typeName.toLowerCase())!,
+          states:   enumTypes.get(key)!,
           line:     this.offsetToLine(m.index),
-        });
+        };
+        groups.set(key, group);
       }
+      for (const n of names) group.names.push(n);
     }
-    return signals;
+    return [...groups.values()];
   }
 
   // ── Transition extraction (outer driver) ─────────────────────────────────
-  // For each `case <fsmSignal> is`, split the top-level `when` arms to establish the
-  // from-state, then recurse into each arm body with an empty condition stack.
-  private extractTransitions(sig: FsmSignal): FsmTransition[] {
+  // Find every `case <sig> is` whose selector is *any* signal of the enum-type group,
+  // split its top-level `when` arms to establish the from-state, then recurse into
+  // each arm body with an empty condition stack. Assignments to any group signal
+  // count as transitions (so a two-process `next_state <= …` is captured).
+  // Returns the original-case selector signal that headed the (first) matched case.
+  private extractTransitions(sig: FsmSignal): { transitions: FsmTransition[]; selector?: string } {
     const ctx: FsmCtx = {
-      assignSigs:  new Set([sig.name.toLowerCase()]),
+      assignSigs:  new Set(sig.names.map(s => s.toLowerCase())),
       knownStates: new Set(sig.states.map(s => s.toLowerCase())),
       stateOrig:   new Map(sig.states.map(s => [s.toLowerCase(), s])),
       out:         [],
     };
 
-    const headerRe = new RegExp(`\\bcase\\s+${escapeRegex(sig.name.toLowerCase())}\\s+is\\b`, 'g');
+    const sigAlt = sig.names.map(s => escapeRegex(s.toLowerCase())).join('|');
+    const headerRe = new RegExp(`\\bcase\\s+(${sigAlt})\\s+is\\b`, 'g');
+    let selector: string | undefined;
     let hm: RegExpExecArray | null;
     while ((hm = headerRe.exec(this.normalised)) !== null) {
+      const selStart = hm.index + /^case\s+/.exec(hm[0])![0].length;
+      if (selector === undefined) selector = this.originalAt(selStart, hm[1].length);
       const bodyStart = hm.index + hm[0].length;
       const bodyEnd   = this.findMatchingEndCase(bodyStart);
       if (bodyEnd < 0) continue;
       this.parseTopCase(bodyStart, bodyEnd, ctx);
     }
-    return ctx.out;
+    return { transitions: ctx.out, selector };
   }
 
   /**
