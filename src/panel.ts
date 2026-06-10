@@ -209,6 +209,13 @@ const C = IS_LIGHT ? {
 let currentFsm=0, zoom=1, panX=0, panY=0;
 let panning=false, px0=0, py0=0;
 let selected=null, didFit=false;
+// focusMode (only meaningful while a state is selected):
+//   0 = show neighbors in both directions (default focus view)
+//   1 = show only outgoing neighbors (states selected points to)
+//   2 = show only incoming neighbors (states pointing to selected)
+// Cycling past 2 deselects. A neighbor with an edge in the *kept* direction is
+// never dimmed, even if it also has an edge in the filtered-out direction.
+let focusMode=0;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function buildTabs(){
@@ -366,6 +373,16 @@ function render(){
   // Build a set of directed keys so we can detect bidirectional pairs.
   const directedSet=new Set(grouped.map(e=>e.from+'|||'+e.to));
 
+  // Is "name" a kept neighbor of "selected" under the current focusMode?
+  //   0: any edge between selected and name (either direction)
+  //   1: outgoing only - selected -> name
+  //   2: incoming only - name -> selected
+  function isKeptNeighbor(name){
+    if(focusMode===1) return directedSet.has(selected+'|||'+name);
+    if(focusMode===2) return directedSet.has(name+'|||'+selected);
+    return directedSet.has(selected+'|||'+name)||directedSet.has(name+'|||'+selected);
+  }
+
   // ── Draw edges ───────────────────────────────────────────────────────
   const eGrp=el('g');
 
@@ -373,7 +390,8 @@ function render(){
     const fp=pos[edge.from], tp=pos[edge.to];
     if(!fp) return;
 
-    const isHL =selected&&(edge.from===selected||edge.to===selected);
+    const other=edge.from===selected?edge.to:edge.to===selected?edge.from:null;
+    const isHL =selected&&other!==null&&isKeptNeighbor(other);
     const isDim=selected&&!isHL;
 
     const isSelf=edge.isSelf;
@@ -449,8 +467,7 @@ function render(){
     if(!p) return;
 
     const isSel =selected===state.name;
-    const isConn=selected&&!isSel&&
-      fsm.transitions.some(t=>(t.from===selected&&t.to===state.name)||(t.to===selected&&t.from===state.name));
+    const isConn=selected&&!isSel&&isKeptNeighbor(state.name);
     const isDim =selected&&!isSel&&!isConn;
 
     const sg=el('g',{cursor:'pointer',opacity:isDim?'0.22':'1'});
@@ -503,7 +520,13 @@ function render(){
 
     sg.addEventListener('click',e=>{
       e.stopPropagation(); hideTooltip();
-      selected=selected===state.name?null:state.name;
+      if(selected===state.name){
+        focusMode++;
+        if(focusMode>2){ selected=null; focusMode=0; }
+      } else {
+        if(selected===null) focusMode=0;
+        selected=state.name;
+      }
       render();
     });
     sGrp.appendChild(sg);
@@ -575,7 +598,7 @@ function infoHtml(fsm){
     '<div class="info-row"><span>Type</span><span class="v">'+f.typeName+'</span></div>'+
     '<div class="info-row"><span>States</span><span class="v">'+f.states.length+'</span></div>'+
     '<div class="info-row"><span>Arrows</span><span class="v">'+cnt+'</span></div>'+
-    (selected?'<div class="info-note">Click again to deselect</div>':'');
+    (selected?'<div class="info-note">Click again to cycle focus, click elsewhere to deselect</div>':'');
 }
 
 // ── Pan & Zoom ────────────────────────────────────────────────────────────
