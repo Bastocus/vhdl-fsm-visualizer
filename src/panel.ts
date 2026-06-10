@@ -605,7 +605,8 @@ function infoHtml(fsm){
   const cnt=selected
     ?grouped.filter(e=>e.from===selected||e.to===selected).length
     :grouped.length;
-  return '<h4>'+(selected?'&#9711; '+selected:'FSM Info')+'</h4>'+
+  const modeLabel=focusMode===1?', outgoing only':focusMode===2?', incoming only':'';
+  return '<h4>'+(selected?'&#9711; '+selected+modeLabel:'FSM Info')+'</h4>'+
     '<div class="info-row"><span>Signal</span><span class="v">'+f.signalName+'</span></div>'+
     '<div class="info-row"><span>Type</span><span class="v">'+f.typeName+'</span></div>'+
     '<div class="info-row"><span>States</span><span class="v">'+f.states.length+'</span></div>'+
