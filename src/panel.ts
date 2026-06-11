@@ -246,7 +246,6 @@ function layout(states){
 // ── SVG helpers ───────────────────────────────────────────────────────────
 const NS='http://www.w3.org/2000/svg';
 const R=48;  // state circle radius
-const LABEL_PADDING=12;  // pixel margin around label for conflict detection (Phase C)
 
 function el(tag,attrs){
   const e=document.createElementNS(NS,tag);
@@ -290,7 +289,7 @@ function edgePath(fx,fy,tx,ty,curveFactor){
   const lx=mx;
   const ly=my;
 
-  return {d:'M '+x1+' '+y1+' Q '+cpx+' '+cpy+' '+x2+' '+y2, lx, ly, nx, ny};
+  return {d:'M '+x1+' '+y1+' Q '+cpx+' '+cpy+' '+x2+' '+y2, lx, ly};
 }
 
 // ── Edge grouping ─────────────────────────────────────────────────────────
@@ -312,27 +311,7 @@ function groupEdges(transitions){
   return Array.from(map.values());
 }
 
-// ── Phase C: Detect and resolve label conflicts ────────────────────────────
-function resolveLabeLConflicts(edges: Array<{lx: number, ly: number, nx: number, ny: number}>): void {
-  const CONFLICT_DIST = 2 * LABEL_PADDING;
-  for(let i = 0; i < edges.length; i++){
-    for(let j = i + 1; j < edges.length; j++){
-      const e1 = edges[i], e2 = edges[j];
-      const dx = e2.lx - e1.lx, dy = e2.ly - e1.ly;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if(dist < CONFLICT_DIST){
-        // Labels conflict: nudge them apart perpendicular to their edges
-        const offset = (CONFLICT_DIST - dist) / 2 + 2;
-        e1.lx -= e1.nx * offset;
-        e1.ly -= e1.ny * offset;
-        e2.lx += e2.nx * offset;
-        e2.ly += e2.ny * offset;
-      }
-    }
-  }
-}
-
-// ── Main render ───────────────────────────────────────────────────────────────
+// ── Main render ───────────────────────────────────────────────────────────
 function render(){
   const main   =document.getElementById('main-content');
   const toolbar=document.getElementById('toolbar');
@@ -419,15 +398,22 @@ function render(){
   // ── Draw edges ───────────────────────────────────────────────────────
   const eGrp=el('g');
 
-  // Phase C: collect edge data, resolve conflicts, then render
-  const edgeData: Array<any>=[];
   grouped.forEach(edge=>{
     const fp=pos[edge.from], tp=pos[edge.to];
     if(!fp) return;
 
-    let pathD, lx, ly, nx=0, ny=1;
+    const isHL =selected&&isEdgeHL(edge);
+    const isDim=selected&&!isHL;
 
-    if(edge.isSelf){
+    const isSelf=edge.isSelf;
+    const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
+    const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
+    const sw   =isHL?2.5:1.8;
+    const op   =isDim?'0.2':'1';
+
+    let pathD, lx, ly;
+
+    if(isSelf){
       // Arc looping above the state node
       const sx=fp.x-22, sy=fp.y-R;
       const ex=fp.x+22, ey=fp.y-R;
@@ -441,25 +427,8 @@ function render(){
       // perpendicular flips sign when direction is reversed, they bow opposite ways.
       const cf=hasReverse?0.26:0.09;
       const ep=edgePath(fp.x,fp.y,tp.x,tp.y,cf);
-      pathD=ep.d; lx=ep.lx; ly=ep.ly; nx=ep.nx; ny=ep.ny;
+      pathD=ep.d; lx=ep.lx; ly=ep.ly;
     }
-
-    edgeData.push({edge, pathD, lx, ly, nx, ny});
-  });
-
-  // Resolve label conflicts (Phase C)
-  resolveLabeLConflicts(edgeData);
-
-  // Render edges with adjusted label positions
-  edgeData.forEach(({edge, pathD, lx, ly})=>{
-    const isHL =selected&&isEdgeHL(edge);
-    const isDim=selected&&!isHL;
-
-    const isSelf=edge.isSelf;
-    const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
-    const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
-    const sw   =isHL?2.5:1.8;
-    const op   =isDim?'0.2':'1';
 
     eGrp.appendChild(el('path',{
       d:pathD,fill:'none',stroke,'stroke-width':sw,
