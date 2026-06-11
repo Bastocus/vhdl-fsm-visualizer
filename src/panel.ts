@@ -419,14 +419,13 @@ function render(){
   // ── Draw edges ───────────────────────────────────────────────────────
   const eGrp=el('g');
 
-  // Phase C: collect edge data first for conflict detection
-  const edgeData: Array<{edge: any, pathD: string, lx: number, ly: number, nx: number, ny: number}> = [];
-
+  // Phase C: collect edge data, resolve conflicts, then render
+  const edgeData: Array<any>=[];
   grouped.forEach(edge=>{
     const fp=pos[edge.from], tp=pos[edge.to];
     if(!fp) return;
 
-    let pathD='', lx=0, ly=0, nx=0, ny=1;
+    let pathD, lx, ly, nx=0, ny=1;
 
     if(edge.isSelf){
       // Arc looping above the state node
@@ -452,8 +451,7 @@ function render(){
   resolveLabeLConflicts(edgeData);
 
   // Render edges with adjusted label positions
-  edgeData.forEach(data=>{
-    const {edge, pathD, lx, ly} = data;
+  edgeData.forEach(({edge, pathD, lx, ly})=>{
     const isHL =selected&&isEdgeHL(edge);
     const isDim=selected&&!isHL;
 
