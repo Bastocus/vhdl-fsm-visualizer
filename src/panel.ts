@@ -313,7 +313,7 @@ function groupEdges(transitions){
 }
 
 // ── Phase C: Detect and resolve label conflicts ────────────────────────────
-function resolveLabeLConflicts(edges: Array<{lx: number, ly: number, nx: number, ny: number}>): void {
+function resolveLabeLConflicts(edges){
   const CONFLICT_DIST = 2 * LABEL_PADDING;
   for(let i = 0; i < edges.length; i++){
     for(let j = i + 1; j < edges.length; j++){
@@ -420,7 +420,7 @@ function render(){
   const eGrp=el('g');
 
   // Phase C: collect edge data first for conflict detection
-  const edgeData: Array<{edge: any, pathD: string, lx: number, ly: number, nx: number, ny: number}> = [];
+  const edgeData=[];
 
   grouped.forEach(edge=>{
     const fp=pos[edge.from], tp=pos[edge.to];
