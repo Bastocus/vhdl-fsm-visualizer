@@ -284,11 +284,10 @@ function edgePath(fx,fy,tx,ty,curveFactor){
   const cpx=(x1+x2)/2 + nx*offset;
   const cpy=(y1+y2)/2 + ny*offset;
 
-  // Label sits off the curve midpoint, further away when there's more bow
+  // Label positioned on the curve midpoint (Phase A: on-edge label)
   const [mx,my]=qMid(x1,y1,cpx,cpy,x2,y2);
-  const labelDist=Math.max(14, Math.abs(offset)*0.45+10);
-  const lx=mx+nx*labelDist;
-  const ly=my+ny*labelDist;
+  const lx=mx;
+  const ly=my;
 
   return {d:'M '+x1+' '+y1+' Q '+cpx+' '+cpy+' '+x2+' '+y2, lx, ly};
 }
@@ -419,7 +418,8 @@ function render(){
       const sx=fp.x-22, sy=fp.y-R;
       const ex=fp.x+22, ey=fp.y-R;
       pathD='M '+sx+' '+sy+' A 40 30 0 1 1 '+ex+' '+ey;
-      lx=fp.x; ly=fp.y-R-66;
+      // Phase A: label positioned on arc midpoint
+      lx=fp.x; ly=fp.y-R-32;
     } else {
       // Check if the reverse direction also has an arrow
       const hasReverse=directedSet.has(edge.to+'|||'+edge.from);
