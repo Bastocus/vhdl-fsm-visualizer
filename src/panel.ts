@@ -259,37 +259,48 @@ function edgePt(cx,cy,r,tx,ty){
   return [cx+dx/d*(r+2), cy+dy/d*(r+2)];
 }
 
-/** Mid-point of quadratic bezier */
-function qMid(x1,y1,cpx,cpy,x2,y2){
-  return [(x1+2*cpx+x2)/4, (y1+2*cpy+y2)/4];
+/** Point on a quadratic bezier at parameter t (0..1) */
+function bezierPoint(x1,y1,cpx,cpy,x2,y2,t){
+  const mt=1-t;
+  return [mt*mt*x1+2*mt*t*cpx+t*t*x2, mt*mt*y1+2*mt*t*cpy+t*t*y2];
 }
 
-/**
- * Compute a quadratic bezier edge between two state circles.
- *
- * curveFactor > 0 → control point displaced to the left of the direction vector.
- * Because the perpendicular of A→B is opposite to that of B→A, using the same
- * positive factor for both directions causes them to bow on opposite sides.
- *
- *   curveFactor=0.25  → visible bow (~25% of edge length)
- *   curveFactor=0.08  → slight bow for unidirectional single edges
- */
-function edgePath(fx,fy,tx,ty,curveFactor){
-  const [x1,y1]=edgePt(fx,fy,R,tx,ty);
-  const [x2,y2]=edgePt(tx,ty,R,fx,fy);
-  const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
-  const nx=-dy/len, ny=dx/len;          // left-perpendicular unit vector
+/** Sample n+1 evenly-spaced points along a quadratic bezier (for collision tests) */
+function sampleBezier(x1,y1,cpx,cpy,x2,y2,n){
+  const pts=[];
+  for(let i=0;i<=n;i++) pts.push(bezierPoint(x1,y1,cpx,cpy,x2,y2,i/n));
+  return pts;
+}
 
-  const offset=curveFactor*len;          // control-point displacement
-  const cpx=(x1+x2)/2 + nx*offset;
-  const cpy=(y1+y2)/2 + ny*offset;
-
-  // Label positioned on the curve midpoint (Phase A: on-edge label)
-  const [mx,my]=qMid(x1,y1,cpx,cpy,x2,y2);
-  const lx=mx;
-  const ly=my;
-
-  return {d:'M '+x1+' '+y1+' Q '+cpx+' '+cpy+' '+x2+' '+y2, lx, ly};
+// ── Rect collision helpers (for "..." label placement) ────────────────────
+function rectsOverlap(a,b){
+  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+function rectCircleOverlap(r,cx,cy,rad){
+  const nx=Math.max(r.x,Math.min(cx,r.x+r.w));
+  const ny=Math.max(r.y,Math.min(cy,r.y+r.h));
+  const dx=cx-nx, dy=cy-ny;
+  return dx*dx+dy*dy<rad*rad;
+}
+function segCross(o,a,b){ return (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]); }
+function segIntersect(ax,ay,bx,by,cx,cy,dx,dy){
+  const A=[ax,ay],B=[bx,by],Cc=[cx,cy],D=[dx,dy];
+  const d1=segCross(Cc,D,A), d2=segCross(Cc,D,B);
+  const d3=segCross(A,B,Cc), d4=segCross(A,B,D);
+  return ((d1>0&&d2<0)||(d1<0&&d2>0)) && ((d3>0&&d4<0)||(d3<0&&d4>0));
+}
+function rectSegOverlap(r,x1,y1,x2,y2){
+  const minx=Math.min(x1,x2), maxx=Math.max(x1,x2);
+  const miny=Math.min(y1,y2), maxy=Math.max(y1,y2);
+  if(maxx<r.x||minx>r.x+r.w||maxy<r.y||miny>r.y+r.h) return false;
+  if(x1>=r.x&&x1<=r.x+r.w&&y1>=r.y&&y1<=r.y+r.h) return true;
+  if(x2>=r.x&&x2<=r.x+r.w&&y2>=r.y&&y2<=r.y+r.h) return true;
+  const cs=[[r.x,r.y],[r.x+r.w,r.y],[r.x+r.w,r.y+r.h],[r.x,r.y+r.h]];
+  for(let i=0;i<4;i++){
+    const [ax,ay]=cs[i], [bx,by]=cs[(i+1)%4];
+    if(segIntersect(x1,y1,x2,y2,ax,ay,bx,by)) return true;
+  }
+  return false;
 }
 
 // ── Edge grouping ─────────────────────────────────────────────────────────
@@ -398,37 +409,87 @@ function render(){
   // ── Draw edges ───────────────────────────────────────────────────────
   const eGrp=el('g');
 
-  grouped.forEach(edge=>{
+  // Pass 1: compute curve geometry for every edge — both the rendered path
+  // and a quadratic-bezier "label track" (for self-loops this is a virtual
+  // curve whose midpoint matches the original fixed label spot above the arc).
+  const edgeGeoms=grouped.map(edge=>{
     const fp=pos[edge.from], tp=pos[edge.to];
-    if(!fp) return;
-
-    const isHL =selected&&isEdgeHL(edge);
-    const isDim=selected&&!isHL;
-
+    if(!fp) return null;
     const isSelf=edge.isSelf;
-    const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
-    const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
-    const sw   =isHL?2.5:1.8;
-    const op   =isDim?'0.2':'1';
-
-    let pathD, lx, ly;
+    let x1,y1,cpx,cpy,x2,y2,pathD;
 
     if(isSelf){
       // Arc looping above the state node
-      const sx=fp.x-22, sy=fp.y-R;
-      const ex=fp.x+22, ey=fp.y-R;
-      pathD='M '+sx+' '+sy+' A 40 30 0 1 1 '+ex+' '+ey;
-      // Phase A: label positioned on arc midpoint
-      lx=fp.x; ly=fp.y-R-32;
+      x1=fp.x-22; y1=fp.y-R; x2=fp.x+22; y2=fp.y-R;
+      cpx=fp.x; cpy=fp.y-R-64;
+      pathD='M '+x1+' '+y1+' A 40 30 0 1 1 '+x2+' '+y2;
     } else {
       // Check if the reverse direction also has an arrow
       const hasReverse=directedSet.has(edge.to+'|||'+edge.from);
       // Both directions use the same positive curveFactor; because the
       // perpendicular flips sign when direction is reversed, they bow opposite ways.
       const cf=hasReverse?0.26:0.09;
-      const ep=edgePath(fp.x,fp.y,tp.x,tp.y,cf);
-      pathD=ep.d; lx=ep.lx; ly=ep.ly;
+      [x1,y1]=edgePt(fp.x,fp.y,R,tp.x,tp.y);
+      [x2,y2]=edgePt(tp.x,tp.y,R,fp.x,fp.y);
+      const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy)||1;
+      const nx=-dy/len, ny=dx/len;          // left-perpendicular unit vector
+      const offset=cf*len;                  // control-point displacement
+      cpx=(x1+x2)/2+nx*offset; cpy=(y1+y2)/2+ny*offset;
+      pathD='M '+x1+' '+y1+' Q '+cpx+' '+cpy+' '+x2+' '+y2;
     }
+
+    return {edge,isSelf,pathD,x1,y1,cpx,cpy,x2,y2,
+      poly:sampleBezier(x1,y1,cpx,cpy,x2,y2,16)};
+  }).filter(Boolean);
+
+  // Pass 2: place each "..." label. It defaults to its curve's midpoint, but
+  // if that spot collides with another label, another edge's curve, or a
+  // state circle, slide it along its own curve (away from the midpoint)
+  // until a free spot is found. If none is free, fall back to the midpoint.
+  const LW=34, LH=17, LPAD=2;
+  const T_OFFSETS=[0,0.12,-0.12,0.24,-0.24,0.34,-0.34];
+  const stateCircles=fsm.states.map(s=>({cx:pos[s.name].x,cy:pos[s.name].y,r:R}));
+  const placedLabelRects=[];
+
+  edgeGeoms.forEach(geo=>{
+    let best=null;
+    for(const off of T_OFFSETS){
+      const t=0.5+off;
+      if(t<0.12||t>0.88) continue;
+      const [px,py]=bezierPoint(geo.x1,geo.y1,geo.cpx,geo.cpy,geo.x2,geo.y2,t);
+      const rect={x:px-LW/2-LPAD,y:py-LH/2-LPAD,w:LW+2*LPAD,h:LH+2*LPAD};
+      let collide=stateCircles.some(c=>rectCircleOverlap(rect,c.cx,c.cy,c.r));
+      if(!collide) collide=placedLabelRects.some(pl=>rectsOverlap(rect,pl));
+      if(!collide) collide=edgeGeoms.some(other=>{
+        if(other===geo) return false;
+        const p=other.poly;
+        for(let i=0;i<p.length-1;i++){
+          if(rectSegOverlap(rect,p[i][0],p[i][1],p[i+1][0],p[i+1][1])) return true;
+        }
+        return false;
+      });
+      if(!collide){ best={px,py,rect}; break; }
+    }
+    if(!best){
+      // No collision-free spot found along the curve — keep the midpoint.
+      const [px,py]=bezierPoint(geo.x1,geo.y1,geo.cpx,geo.cpy,geo.x2,geo.y2,0.5);
+      best={px,py,rect:{x:px-LW/2-LPAD,y:py-LH/2-LPAD,w:LW+2*LPAD,h:LH+2*LPAD}};
+    }
+    geo.lx=best.px; geo.ly=best.py;
+    placedLabelRects.push(best.rect);
+  });
+
+  // Pass 3: draw each edge's path and its "..." label at the placed position.
+  edgeGeoms.forEach(geo=>{
+    const {edge,isSelf,pathD,lx,ly}=geo;
+
+    const isHL =selected&&isEdgeHL(edge);
+    const isDim=selected&&!isHL;
+
+    const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
+    const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
+    const sw   =isHL?2.5:1.8;
+    const op   =isDim?'0.2':'1';
 
     eGrp.appendChild(el('path',{
       d:pathD,fill:'none',stroke,'stroke-width':sw,
@@ -442,9 +503,8 @@ function render(){
     const labelFill  =isDim?C.textMuted:isSelf?C.accent2:isHL?C.labelTextHl:C.labelText;
 
     // Fixed-width pill for "..."
-    const lw=34;
     const lbg=el('rect',{
-      x:lx-lw/2,y:ly-9,width:lw,height:17,rx:4,ry:4,
+      x:lx-LW/2,y:ly-9,width:LW,height:17,rx:4,ry:4,
       fill:C.labelBg,stroke:labelStroke,'stroke-width':'1',
       opacity:op,cursor:'pointer',
     });
@@ -508,7 +568,7 @@ function render(){
 
     // State name — original case preserved from parser
     const name=state.name;
-    const fs=name.length>12?'9':name.length>8?'10':'11';
+    const fs=name.length>12?'14':name.length>8?'15':'16';
     const lbl=el('text',{
       x:p.x,y:p.y,'text-anchor':'middle','dominant-baseline':'middle',
       fill:isSel?'#ffffff':C.text,
