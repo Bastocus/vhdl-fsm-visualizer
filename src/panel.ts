@@ -137,6 +137,38 @@ body.light .empty h3{color:#1e2030;}
 .empty p{font-size:13px;max-width:360px;text-align:center;line-height:1.5;}
 .empty code{font-family:monospace;background:#22263a;padding:1px 5px;border-radius:3px;color:#4f9cf9;}
 body.light .empty code{background:#e8edf8;color:#2563eb;}
+
+.transitions-panel{flex-shrink:0;display:flex;flex-direction:column;
+  background:#1a1d27;border-top:1px solid #2e3350;}
+body.light .transitions-panel{background:#fff;border-color:#c5d0e8;}
+.tp-resize{height:6px;flex-shrink:0;cursor:row-resize;}
+.tp-resize:hover{background:rgba(79,156,249,0.25);}
+body.light .tp-resize:hover{background:rgba(37,99,235,0.18);}
+.tp-header{display:flex;align-items:center;gap:8px;padding:8px 14px;
+  cursor:pointer;user-select:none;font-size:12px;font-weight:600;
+  color:#8892a4;flex-shrink:0;}
+.tp-header:hover{color:#e2e8f0;}
+body.light .tp-header{color:#5a6483;}
+body.light .tp-header:hover{color:#1e2030;}
+.tp-chevron{font-size:10px;display:inline-block;transition:transform .15s;}
+.tp-chevron.collapsed{transform:rotate(-90deg);}
+.tp-body{flex:1;min-height:0;overflow-y:auto;border-top:1px solid #2e3350;}
+body.light .tp-body{border-color:#c5d0e8;}
+.tp-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.tp-table th{position:sticky;top:0;text-align:left;padding:6px 10px;
+  background:#1a1d27;color:#8892a4;font-weight:600;
+  border-bottom:1px solid #2e3350;}
+body.light .tp-table th{background:#fff;color:#5a6483;border-color:#c5d0e8;}
+.tp-table td{padding:5px 10px;border-bottom:1px solid #22263a;white-space:nowrap;}
+body.light .tp-table td{border-color:#eef1fa;}
+.tp-table tr.tp-row:hover{background:rgba(79,156,249,0.12);}
+body.light .tp-table tr.tp-row:hover{background:rgba(37,99,235,0.08);}
+.tp-cond{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
+  color:#8892a4;white-space:normal;word-break:break-word;}
+body.light .tp-cond{color:#5a6483;}
+.tp-line{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
+  color:#8892a4;text-align:right;}
+body.light .tp-line{color:#5a6483;}
 </style>
 </head>
 <body>
@@ -216,6 +248,73 @@ let selected=null, didFit=false;
 // Cycling past 2 deselects. A neighbor with an edge in the *kept* direction is
 // never dimmed, even if it also has an edge in the filtered-out direction.
 let focusMode=0;
+// Transitions table row hover — directed edge to highlight, or null.
+let tableHoverEdge=null;
+// A directed edge "..." pill was clicked — filters the transitions table to
+// just that edge and highlights it (mutually exclusive with 'selected').
+let clickedEdge=null;
+let transitionsCollapsed=true;
+let transitionsHeight=260;
+// Geometry + DOM refs for the currently-drawn edges, kept around so table
+// hover can re-style edges in place without a full render() (see
+// applyEdgeHighlight). Rebuilt every render().
+let edgeGeomsRef=[];
+
+// Is this specific edge highlighted under the current focusMode? Unlike
+// isKeptNeighbor (which can keep a *state* visible via a different edge),
+// an edge is only highlighted if it matches the mode's own direction.
+//   0: edge touches selected (either direction)
+//   1: outgoing only - edge.from === selected
+//   2: incoming only - edge.to === selected
+function isEdgeHL(edge){
+  if(focusMode===1) return edge.from===selected;
+  if(focusMode===2) return edge.to===selected;
+  return edge.from===selected||edge.to===selected;
+}
+
+function edgeMatches(edge,target){
+  return !!target && edge.from===target.from && edge.to===target.to;
+}
+
+// Transitions visible in the table for the current selection state:
+//   - a clicked edge filters to just that directed from/to pair
+//   - a selected state filters to whatever isEdgeHL keeps highlighted
+//     (taking focusMode's outgoing/incoming/both into account)
+//   - otherwise, everything
+function getVisibleTransitions(fsm){
+  if(clickedEdge) return fsm.transitions.filter(tr=>tr.from===clickedEdge.from&&tr.to===clickedEdge.to);
+  if(selected)    return fsm.transitions.filter(tr=>isEdgeHL(tr));
+  return fsm.transitions;
+}
+
+// Re-style edges/labels in place to reflect 'selected'/'tableHoverEdge'
+// without rebuilding the DOM (a full render() would detach the table row
+// under the mouse and break mouseenter/mouseleave tracking).
+function applyEdgeHighlight(){
+  edgeGeomsRef.forEach(geo=>{
+    const {edge,isSelf,pathEl,lbgEl,ltxtEl}=geo;
+    if(!pathEl) return;
+
+    const isHL =(selected&&isEdgeHL(edge))||edgeMatches(edge,tableHoverEdge)||edgeMatches(edge,clickedEdge);
+    const isDim=(selected||tableHoverEdge||clickedEdge)&&!isHL;
+
+    const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
+    const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
+    const sw   =isHL?'2.5':'1.8';
+    const op   =isDim?'0.2':'1';
+    pathEl.setAttribute('stroke',stroke);
+    pathEl.setAttribute('stroke-width',sw);
+    pathEl.setAttribute('marker-end','url(#'+aId+')');
+    pathEl.setAttribute('opacity',op);
+
+    const labelStroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.labelHlBorder:C.labelBorder;
+    const labelFill  =isDim?C.textMuted:isSelf?C.accent2:isHL?C.labelTextHl:C.labelText;
+    lbgEl.setAttribute('stroke',labelStroke);
+    lbgEl.setAttribute('opacity',op);
+    ltxtEl.setAttribute('fill',labelFill);
+    ltxtEl.setAttribute('opacity',op);
+  });
+}
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function buildTabs(){
@@ -225,7 +324,7 @@ function buildTabs(){
     const t=document.createElement('div');
     t.className='tab'+(i===currentFsm?' active':'');
     t.textContent=fsm.signalName+' : '+fsm.typeName;
-    t.onclick=()=>{currentFsm=i;selected=null;didFit=false;buildTabs();render();};
+    t.onclick=()=>{currentFsm=i;selected=null;tableHoverEdge=null;clickedEdge=null;didFit=false;buildTabs();render();};
     bar.appendChild(t);
   });
 }
@@ -328,6 +427,9 @@ function render(){
   const toolbar=document.getElementById('toolbar');
   hideTooltip();
 
+  const prevTpBody=document.getElementById('tp-body');
+  const prevTpScroll=prevTpBody?prevTpBody.scrollTop:0;
+
   if(!FSM_DATA.length){
     toolbar.style.display='none';
     main.innerHTML=
@@ -392,18 +494,6 @@ function render(){
     if(focusMode===1) return directedSet.has(selected+'|||'+name);
     if(focusMode===2) return directedSet.has(name+'|||'+selected);
     return directedSet.has(selected+'|||'+name)||directedSet.has(name+'|||'+selected);
-  }
-
-  // Is this specific edge highlighted under the current focusMode? Unlike
-  // isKeptNeighbor (which can keep a *state* visible via a different edge),
-  // an edge is only highlighted if it matches the mode's own direction.
-  //   0: edge touches selected (either direction)
-  //   1: outgoing only - edge.from === selected
-  //   2: incoming only - edge.to === selected
-  function isEdgeHL(edge){
-    if(focusMode===1) return edge.from===selected;
-    if(focusMode===2) return edge.to===selected;
-    return edge.from===selected||edge.to===selected;
   }
 
   // ── Draw edges ───────────────────────────────────────────────────────
@@ -483,19 +573,21 @@ function render(){
   edgeGeoms.forEach(geo=>{
     const {edge,isSelf,pathD,lx,ly}=geo;
 
-    const isHL =selected&&isEdgeHL(edge);
-    const isDim=selected&&!isHL;
+    const isHL =(selected&&isEdgeHL(edge))||edgeMatches(edge,tableHoverEdge)||edgeMatches(edge,clickedEdge);
+    const isDim=(selected||tableHoverEdge||clickedEdge)&&!isHL;
 
     const stroke=isDim?C.edgeDim:isSelf?C.accent2:isHL?C.accent:C.edgeColor;
     const aId  =isDim?'a-d':isSelf?'a-s':isHL?'a-h':'a-n';
     const sw   =isHL?2.5:1.8;
     const op   =isDim?'0.2':'1';
 
-    eGrp.appendChild(el('path',{
+    const pathEl=el('path',{
       d:pathD,fill:'none',stroke,'stroke-width':sw,
       'marker-end':'url(#'+aId+')','stroke-linecap':'round',
       opacity:op,
-    }));
+    });
+    eGrp.appendChild(pathEl);
+    geo.pathEl=pathEl;
 
     // ── Label: always shows "..." ──────────────────────────────────────
     // Clicking it reveals the condition(s) in a tooltip.
@@ -517,9 +609,13 @@ function render(){
     });
     ltxt.textContent='...';
 
-    // Click → show tooltip with all conditions for this directed edge
+    // Click → show tooltip with all conditions for this directed edge,
+    // highlight it, and filter the transitions table to just this edge.
     const tooltipForEdge=(ev)=>{
       ev.stopPropagation();
+      selected=null; focusMode=0;
+      clickedEdge={from:edge.from,to:edge.to};
+      render();
       showEdgeTooltip(ev.clientX, ev.clientY, edge);
     };
     lbg.addEventListener('click',tooltipForEdge);
@@ -527,8 +623,11 @@ function render(){
 
     eGrp.appendChild(lbg);
     eGrp.appendChild(ltxt);
+    geo.lbgEl=lbg;
+    geo.ltxtEl=ltxt;
   });
 
+  edgeGeomsRef=edgeGeoms;
   g.appendChild(eGrp);
 
   // ── Draw states ───────────────────────────────────────────────────────
@@ -592,6 +691,7 @@ function render(){
 
     sg.addEventListener('click',e=>{
       e.stopPropagation(); hideTooltip();
+      clickedEdge=null;
       if(selected===state.name){
         focusMode++;
         if(focusMode>2){ selected=null; focusMode=0; }
@@ -613,8 +713,102 @@ function render(){
   wrap.appendChild(info);
 
   main.appendChild(wrap);
+  main.appendChild(buildTransitionsPanel(fsm));
   applyT(); attachEvents(wrap);
   if(!didFit){didFit=true;requestAnimationFrame(fitToView);}
+
+  const tpBody=document.getElementById('tp-body');
+  if(tpBody) tpBody.scrollTop=prevTpScroll;
+}
+
+// ── Transitions table ────────────────────────────────────────────────────
+function buildTransitionsPanel(fsm){
+  const panel=document.createElement('div');
+  panel.className='transitions-panel';
+
+  const visible=getVisibleTransitions(fsm);
+  const total=fsm.transitions.length;
+
+  const header=document.createElement('div');
+  header.className='tp-header';
+  const chev=document.createElement('span');
+  chev.className='tp-chevron'+(transitionsCollapsed?' collapsed':'');
+  chev.textContent='▾';
+  const title=document.createElement('span');
+  title.textContent=visible.length===total
+    ?'Transitions ('+total+')'
+    :'Transitions ('+visible.length+' of '+total+')';
+  header.appendChild(chev);
+  header.appendChild(title);
+  header.addEventListener('click',()=>{
+    transitionsCollapsed=!transitionsCollapsed;
+    render();
+  });
+
+  if(!transitionsCollapsed){
+    panel.style.height=transitionsHeight+'px';
+
+    // Drag the top edge to resize the panel vertically.
+    const resize=document.createElement('div');
+    resize.className='tp-resize';
+    resize.addEventListener('mousedown',e=>{
+      e.preventDefault();
+      const startY=e.clientY, startHeight=transitionsHeight;
+      const onMove=(ev)=>{
+        const h=Math.max(80,Math.min(window.innerHeight-150,startHeight+(startY-ev.clientY)));
+        transitionsHeight=h;
+        panel.style.height=h+'px';
+      };
+      const onUp=()=>{
+        window.removeEventListener('mousemove',onMove);
+        window.removeEventListener('mouseup',onUp);
+      };
+      window.addEventListener('mousemove',onMove);
+      window.addEventListener('mouseup',onUp);
+    });
+    panel.appendChild(resize);
+  }
+
+  panel.appendChild(header);
+
+  if(!transitionsCollapsed){
+    const body=document.createElement('div');
+    body.className='tp-body'; body.id='tp-body';
+    body.addEventListener('wheel',e=>{
+      body.scrollTop+=e.deltaY;
+      e.preventDefault(); e.stopPropagation();
+    },{passive:false});
+
+    const table=document.createElement('table');
+    table.className='tp-table';
+    const thead=document.createElement('thead');
+    thead.innerHTML='<tr><th>From</th><th>To</th><th>Condition</th><th>Line</th></tr>';
+    table.appendChild(thead);
+
+    const tbody=document.createElement('tbody');
+    visible.forEach(tr=>{
+      const row=document.createElement('tr');
+      row.className='tp-row';
+
+      const tdFrom=document.createElement('td'); tdFrom.textContent=tr.from;
+      const tdTo  =document.createElement('td'); tdTo.textContent=tr.to;
+      const tdCond=document.createElement('td'); tdCond.className='tp-cond'; tdCond.textContent=tr.condition;
+      const tdLine=document.createElement('td'); tdLine.className='tp-line'; tdLine.textContent=String(tr.line);
+      row.appendChild(tdFrom); row.appendChild(tdTo); row.appendChild(tdCond); row.appendChild(tdLine);
+
+      // Hover highlights the matching edge in place (no re-render, so
+      // mouseleave still fires on this same element afterwards).
+      row.addEventListener('mouseenter',()=>{ tableHoverEdge={from:tr.from,to:tr.to}; applyEdgeHighlight(); });
+      row.addEventListener('mouseleave',()=>{ tableHoverEdge=null; applyEdgeHighlight(); });
+
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
+    panel.appendChild(body);
+  }
+
+  return panel;
 }
 
 // ── Tooltip ───────────────────────────────────────────────────────────────
@@ -700,7 +894,7 @@ function attachEvents(wrap){
   },{passive:false});
   wrap.addEventListener('click',e=>{
     if(!e.target.closest('[data-state]')&&!e.target.closest('[cursor="pointer"]')){
-      selected=null; render();
+      selected=null; clickedEdge=null; render();
     }
   });
 }
