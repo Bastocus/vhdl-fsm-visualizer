@@ -592,16 +592,16 @@ function render(){
     const toggleEdgeFilter=(ev)=>{
       ev.stopPropagation();
       selected=null; focusMode=0;
-      hideTooltip();
       if(isFilteredEdge){
-        // Already filtered to this edge → clear the filter
+        // Already filtered to this edge → clear the filter and close the popup
         tableFilterEdge=null;
+        render();
       } else {
-        // Filter to this edge
+        // Filter to this edge and show the popup
         tableFilterEdge={from:edge.from,to:edge.to};
+        render();
         showEdgeTooltip(ev.clientX, ev.clientY, edge);
       }
-      render();
     };
 
     eGrp.appendChild(pathEl);
