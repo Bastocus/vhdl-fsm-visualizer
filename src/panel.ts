@@ -203,6 +203,9 @@ body.light .tp-line{color:#5a6483;}
 body.light .tp-line-link{color:#2563eb;}
 .tp-line-link:hover{text-decoration:underline;color:#6eb3ff;}
 body.light .tp-line-link:hover{color:#3b82f6;}
+
+.info-link{cursor:pointer;text-decoration:none;}
+.info-link:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -914,6 +917,10 @@ function hideTooltip(){
 document.addEventListener('click', ()=>hideTooltip());
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideTooltip(); });
 
+function goToLine(line){
+  vscodeApi.postMessage({command:'goToLine',line});
+}
+
 function infoHtml(fsm){
   const f=fsm||FSM_DATA[currentFsm];
   // Count unique directed edges (grouped)
@@ -923,8 +930,8 @@ function infoHtml(fsm){
     :grouped.length;
   const modeLabel=focusMode===1?', outgoing only':focusMode===2?', incoming only':'';
   return '<h4>'+(selected?'&#9711; '+selected+modeLabel:'FSM Info')+'</h4>'+
-    '<div class="info-row"><span>Signal</span><span class="v">'+f.signalName+'</span></div>'+
-    '<div class="info-row"><span>Type</span><span class="v">'+f.typeName+'</span></div>'+
+    '<div class="info-row"><span>Signal</span><span class="v info-link" onclick="goToLine('+f.signalLine+')">'+f.signalName+'</span></div>'+
+    '<div class="info-row"><span>Type</span><span class="v info-link" onclick="goToLine('+f.typeLine+')">'+f.typeName+'</span></div>'+
     '<div class="info-row"><span>States</span><span class="v">'+f.states.length+'</span></div>'+
     '<div class="info-row"><span>Arrows</span><span class="v">'+cnt+'</span></div>'+
     (selected?'<div class="info-note">Click again to cycle focus, click elsewhere to deselect</div>':'');

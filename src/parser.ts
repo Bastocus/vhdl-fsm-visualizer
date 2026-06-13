@@ -46,11 +46,13 @@ export interface FsmTransition { from: string; to: string; condition: string; li
  * `next_state` of `state_t`). Two-process FSMs case-select on one signal and assign
  * another, so the parser treats the whole group as a single state machine.
  */
-export interface FsmSignal     { name: string; names: string[]; typeName: string; states: string[]; line: number; }
+export interface FsmSignal     { name: string; names: string[]; typeName: string; states: string[]; line: number; linesByName: Map<string, number>; }
 
 export interface ParsedFsm {
   signalName: string;
+  signalLine: number;
   typeName: string;
+  typeLine: number;
   states: FsmState[];
   transitions: FsmTransition[];
   entityName: string;
@@ -104,11 +106,14 @@ export class VhdlFsmParser {
           name: s,
           line: this.findStateLine(s),
         }));
+        // The case-selector signal names the FSM; fall back to the first signal of
+        // the type when no `case` header matched (should not happen if it emitted).
+        const signalName = selector ?? sig.name;
         result.fsms.push({
-          // The case-selector signal names the FSM; fall back to the first signal of
-          // the type when no `case` header matched (should not happen if it emitted).
-          signalName: selector ?? sig.name,
+          signalName,
+          signalLine: sig.linesByName.get(signalName.toLowerCase()) ?? sig.line,
           typeName:   sig.typeName,
+          typeLine:   this.findTypeLine(sig.typeName),
           states,
           transitions,
           entityName,
@@ -181,6 +186,7 @@ export class VhdlFsmParser {
       const key      = typeName.toLowerCase();
       if (!enumTypes.has(key)) continue;
       const names = m[1].split(',').map(s => s.trim()).filter(Boolean);
+      const declLine = this.offsetToLine(m.index);
       let group = groups.get(key);
       if (!group) {
         group = {
@@ -188,11 +194,15 @@ export class VhdlFsmParser {
           names:    [],
           typeName,
           states:   enumTypes.get(key)!,
-          line:     this.offsetToLine(m.index),
+          line:     declLine,
+          linesByName: new Map(),
         };
         groups.set(key, group);
       }
-      for (const n of names) group.names.push(n);
+      for (const n of names) {
+        group.names.push(n);
+        group.linesByName.set(n.toLowerCase(), declLine);
+      }
     }
     return [...groups.values()];
   }
@@ -578,6 +588,13 @@ export class VhdlFsmParser {
       if (line.toLowerCase().includes(lo)) return i + 1;
     }
     return 1;
+  }
+
+  /** Find the line of `type <typeName> is (...)`. */
+  private findTypeLine(typeName: string): number {
+    const re = new RegExp(`\\btype\\s+${escapeRegex(typeName)}\\s+is\\s*\\(`, 'i');
+    const m = re.exec(this.originalSource);
+    return m ? this.offsetToLine(m.index) : 1;
   }
 }
 
