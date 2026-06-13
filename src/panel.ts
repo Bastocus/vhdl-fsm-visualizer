@@ -234,7 +234,7 @@ body.light .tp-line-link:hover{color:#3b82f6;}
   <button class="btn" onclick="resetZoom()">Reset</button>
   <div class="sep"></div>
   <button class="btn" onclick="exportSvg()">Export SVG</button>
-  <span class="hint">Scroll=zoom &middot; Drag=pan &middot; Click state or label for details</span>
+  <span class="hint">Scroll=zoom &middot; Drag=pan &middot; Click state or label for details &middot; Ctrl+Click to go to source</span>
 </div>
 
 <!-- Floating tooltip (pointer-events:none — never blocks mouse) -->
