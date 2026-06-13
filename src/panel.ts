@@ -634,6 +634,12 @@ function render(){
     lbg.addEventListener('click',toggleEdgeFilter);
     ltxt.addEventListener('click',toggleEdgeFilter);
 
+    // Add title to rect for native SVG tooltips
+    const ttl=el('title');
+    const titleText=edge.from+' -> '+edge.to+': '+edge.conditions.join(', ');
+    ttl.textContent=titleText;
+    lbg.insertBefore(ttl,lbg.firstChild);
+
     eGrp.appendChild(lbg);
     eGrp.appendChild(ltxt);
     geo.lbgEl=lbg;
