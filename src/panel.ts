@@ -197,7 +197,7 @@ body.light .tp-table tr.tp-row:hover{background:rgba(37,99,235,0.08);}
   color:#8892a4;white-space:normal;word-break:break-word;}
 body.light .tp-cond{color:#5a6483;}
 .tp-line{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
-  color:#8892a4;text-align:right;}
+  color:#8892a4;text-align:left;}
 body.light .tp-line{color:#5a6483;}
 .tp-line-link{cursor:pointer;color:#4f9cf9;text-decoration:none;user-select:none;}
 body.light .tp-line-link{color:#2563eb;}
