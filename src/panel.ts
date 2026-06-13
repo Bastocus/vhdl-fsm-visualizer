@@ -9,10 +9,10 @@ export class FsmPanel {
   private _disposables: vscode.Disposable[] = [];
   private _docUri: vscode.Uri | undefined;
 
-  public static createOrShow(extensionUri: vscode.Uri, fsms: ParsedFsm[], title: string, docUri?: vscode.Uri): void {
+  public static createOrShow(extensionUri: vscode.Uri, fsms: ParsedFsm[], title: string, docUri?: vscode.Uri, preserveFocus = false): void {
     const col = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.One;
     if (FsmPanel.currentPanel) {
-      FsmPanel.currentPanel._panel.reveal(col);
+      FsmPanel.currentPanel._panel.reveal(col, preserveFocus);
       FsmPanel.currentPanel._docUri = docUri;
       FsmPanel.currentPanel._update(fsms, title);
       return;

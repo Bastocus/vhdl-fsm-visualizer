@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!isVhdlDocument(editor.document)) return;
       if (!FsmPanel.currentPanel) return;
 
-      openDiagram(editor.document, context.extensionUri);
+      openDiagram(editor.document, context.extensionUri, true);
     }
   );
 
@@ -64,7 +64,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
 function openDiagram(
   doc: vscode.TextDocument,
-  extensionUri: vscode.Uri
+  extensionUri: vscode.Uri,
+  preserveFocus = false
 ): void {
   lastDocUri = doc.uri.toString();
 
@@ -84,7 +85,7 @@ function openDiagram(
   }
 
   const title = getDocumentTitle(doc);
-  FsmPanel.createOrShow(extensionUri, result.fsms, title, doc.uri);
+  FsmPanel.createOrShow(extensionUri, result.fsms, title, doc.uri, preserveFocus);
 }
 
 function isVhdlDocument(doc: vscode.TextDocument): boolean {
