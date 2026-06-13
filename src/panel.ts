@@ -259,6 +259,8 @@ let transitionsHeight=260;
 // hover can re-style edges in place without a full render() (see
 // applyEdgeHighlight). Rebuilt every render().
 let edgeGeomsRef=[];
+// Detect click vs drag on empty space: record mousedown, check distance on mouseup
+let emptyClickStart=null;
 
 // Is this specific edge highlighted under the current focusMode? Unlike
 // isKeptNeighbor (which can keep a *state* visible via a different edge),
@@ -903,10 +905,25 @@ function attachEvents(wrap){
     panX=mx-(mx-panX)*(nz/zoom); panY=my-(my-panY)*(nz/zoom);
     zoom=nz; applyT();
   },{passive:false});
-  wrap.addEventListener('click',e=>{
+  // Click on empty space clears selections, but dragging (panning) should not.
+  // Track mousedown position and only clear on mouseup if distance < 5px (click, not drag).
+  wrap.addEventListener('mousedown',e=>{
     if(!e.target.closest('[data-state]')&&!e.target.closest('[cursor="pointer"]')){
+      emptyClickStart={x:e.clientX,y:e.clientY};
+    }
+  });
+  wrap.addEventListener('mousemove',e=>{
+    if(emptyClickStart){
+      const dx=e.clientX-emptyClickStart.x, dy=e.clientY-emptyClickStart.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>5) emptyClickStart=null;
+    }
+  });
+  wrap.addEventListener('mouseup',e=>{
+    if(emptyClickStart){
       selected=null; tableFilterEdge=null; render();
     }
+    emptyClickStart=null;
   });
 }
 
