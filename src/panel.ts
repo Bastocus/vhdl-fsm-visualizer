@@ -954,12 +954,74 @@ function fitToView(){
 function exportSvg(){
   const svg=document.getElementById('diagram-svg');
   if(!svg) return;
+
+  // Clone the SVG
   const clone=svg.cloneNode(true);
-  clone.setAttribute('width','900'); clone.setAttribute('height','650');
+
+  // Reset transform on the content group to get accurate measurements
+  const gClone=clone.querySelector('#dg');
+  if(gClone) {
+    gClone.setAttribute('transform','translate(0,0) scale(1)');
+  }
+
+  // Remove the large background rect
+  const bgRect=clone.querySelector('rect[x="-9999"]');
+  if(bgRect) {
+    bgRect.remove();
+  }
+
+  // Temporarily add to DOM to calculate bounding box
+  clone.style.position='absolute';
+  clone.style.left='-9999px';
+  clone.style.visibility='hidden';
+  document.body.appendChild(clone);
+
+  let bbox={x:0, y:0, width:900, height:650};
+  if(gClone) {
+    try{
+      bbox=gClone.getBBox();
+    }catch(e){
+      // Fallback if getBBox fails
+    }
+  }
+
+  // Remove clone from DOM
+  document.body.removeChild(clone);
+
+  // Calculate dimensions with padding
+  const padding=40;
+  const viewBoxX=bbox.x-padding;
+  const viewBoxY=bbox.y-padding;
+  const viewBoxW=Math.max(1, bbox.width+padding*2);
+  const viewBoxH=Math.max(1, bbox.height+padding*2);
+
+  // Set viewBox for proper scaling
+  clone.setAttribute('viewBox', viewBoxX+' '+viewBoxY+' '+viewBoxW+' '+viewBoxH);
+
+  // Calculate export dimensions (fit to max size while maintaining aspect ratio)
+  const maxSize=1000;
+  const aspectRatio=viewBoxW/viewBoxH;
+  let exportWidth=maxSize;
+  let exportHeight=maxSize;
+  if(aspectRatio>1){
+    exportHeight=Math.round(maxSize/aspectRatio);
+  }else{
+    exportWidth=Math.round(maxSize*aspectRatio);
+  }
+
+  clone.setAttribute('width',String(exportWidth));
+  clone.setAttribute('height',String(exportHeight));
+
+  // Clean up style attributes
+  clone.removeAttribute('style');
+
+  // Create and download
   const blob=new Blob([clone.outerHTML],{type:'image/svg+xml'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='fsm_diagram.svg'; a.click();
+  const link=document.createElement('a');
+  link.href=url;
+  link.download='fsm_diagram.svg';
+  link.click();
   URL.revokeObjectURL(url);
 }
 
