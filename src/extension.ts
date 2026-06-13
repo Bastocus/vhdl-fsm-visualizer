@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     const title = getDocumentTitle(doc);
-    FsmPanel.currentPanel.update(result.fsms, title);
+    FsmPanel.currentPanel.update(result.fsms, title, doc.uri);
   });
 
   // ── Auto-refresh on active editor change ──────────────────────────────
@@ -84,7 +84,7 @@ function openDiagram(
   }
 
   const title = getDocumentTitle(doc);
-  FsmPanel.createOrShow(extensionUri, result.fsms, title);
+  FsmPanel.createOrShow(extensionUri, result.fsms, title, doc.uri);
 }
 
 function isVhdlDocument(doc: vscode.TextDocument): boolean {
