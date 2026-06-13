@@ -27,6 +27,18 @@ export class FsmPanel {
     this._panel = panel;
     this._extensionUri = extensionUri;
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    this._panel.webview.onDidReceiveMessage((msg: any) => {
+      if (msg.command === 'goToLine' && typeof msg.line === 'number') {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+          const line = msg.line - 1;
+          editor.revealRange(
+            new vscode.Range(line, 0, line, 0),
+            vscode.TextEditorRevealType.InCenter
+          );
+        }
+      }
+    }, null, this._disposables);
   }
 
   public update(fsms: ParsedFsm[], title: string): void {
@@ -169,6 +181,10 @@ body.light .tp-cond{color:#5a6483;}
 .tp-line{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
   color:#8892a4;text-align:right;}
 body.light .tp-line{color:#5a6483;}
+.tp-line-link{cursor:pointer;color:#4f9cf9;text-decoration:none;user-select:none;}
+body.light .tp-line-link{color:#2563eb;}
+.tp-line-link:hover{text-decoration:underline;color:#6eb3ff;}
+body.light .tp-line-link:hover{color:#3b82f6;}
 </style>
 </head>
 <body>
@@ -812,7 +828,16 @@ function buildTransitionsPanel(fsm){
       const tdFrom=document.createElement('td'); tdFrom.textContent=tr.from;
       const tdTo  =document.createElement('td'); tdTo.textContent=tr.to;
       const tdCond=document.createElement('td'); tdCond.className='tp-cond'; tdCond.textContent=tr.condition;
-      const tdLine=document.createElement('td'); tdLine.className='tp-line'; tdLine.textContent=String(tr.line);
+      const tdLine=document.createElement('td'); tdLine.className='tp-line';
+      const lineLink=document.createElement('span');
+      lineLink.className='tp-line-link';
+      lineLink.textContent=String(tr.line);
+      lineLink.onclick=(ev)=>{
+        ev.stopPropagation();
+        const vscode=acquireVsCodeApi();
+        vscode.postMessage({command:'goToLine',line:tr.line});
+      };
+      tdLine.appendChild(lineLink);
       row.appendChild(tdFrom); row.appendChild(tdTo); row.appendChild(tdCond); row.appendChild(tdLine);
 
       // Hover highlights the matching edge in place (no re-render, so
