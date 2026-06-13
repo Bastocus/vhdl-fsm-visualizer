@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      openDiagram(doc, context.extensionUri);
+      openDiagram(doc, context.extensionUri, true);
     }
   );
 
