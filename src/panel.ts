@@ -940,7 +940,7 @@ function infoHtml(fsm){
 // ── Pan & Zoom ────────────────────────────────────────────────────────────
 function attachEvents(wrap){
   wrap.addEventListener('mousedown',e=>{
-    if(e.target.closest('[data-state]')) return;
+    if(e.target.closest('[data-state]')||e.target.closest('#info-panel')) return;
     panning=true; px0=e.clientX-panX; py0=e.clientY-panY;
     wrap.classList.add('grabbing');
   });
@@ -964,7 +964,7 @@ function attachEvents(wrap){
   // Click on empty space clears selections, but dragging (panning) should not.
   // Track mousedown position and only clear on mouseup if distance < 5px (click, not drag).
   wrap.addEventListener('mousedown',e=>{
-    if(!e.target.closest('[data-state]')&&!e.target.closest('[cursor="pointer"]')){
+    if(!e.target.closest('[data-state]')&&!e.target.closest('[cursor="pointer"]')&&!e.target.closest('#info-panel')){
       emptyClickStart={x:e.clientX,y:e.clientY};
     }
   });
