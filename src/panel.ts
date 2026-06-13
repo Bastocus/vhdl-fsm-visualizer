@@ -7,11 +7,13 @@ export class FsmPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
+  private _docUri: vscode.Uri | undefined;
 
-  public static createOrShow(extensionUri: vscode.Uri, fsms: ParsedFsm[], title: string): void {
+  public static createOrShow(extensionUri: vscode.Uri, fsms: ParsedFsm[], title: string, docUri?: vscode.Uri): void {
     const col = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.One;
     if (FsmPanel.currentPanel) {
       FsmPanel.currentPanel._panel.reveal(col);
+      FsmPanel.currentPanel._docUri = docUri;
       FsmPanel.currentPanel._update(fsms, title);
       return;
     }
@@ -20,6 +22,7 @@ export class FsmPanel {
       { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [extensionUri] }
     );
     FsmPanel.currentPanel = new FsmPanel(panel, extensionUri);
+    FsmPanel.currentPanel._docUri = docUri;
     FsmPanel.currentPanel._update(fsms, title);
   }
 
@@ -27,21 +30,36 @@ export class FsmPanel {
     this._panel = panel;
     this._extensionUri = extensionUri;
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-    this._panel.webview.onDidReceiveMessage((msg: any) => {
+    this._panel.webview.onDidReceiveMessage(async (msg: any) => {
       if (msg.command === 'goToLine' && typeof msg.line === 'number') {
-        const editor = vscode.window.activeTextEditor;
-        if (editor) {
-          const line = msg.line - 1;
-          editor.revealRange(
-            new vscode.Range(line, 0, line, 0),
-            vscode.TextEditorRevealType.InCenter
-          );
-        }
+        await this._goToLine(msg.line);
       }
     }, null, this._disposables);
   }
 
-  public update(fsms: ParsedFsm[], title: string): void {
+  private async _goToLine(line1Based: number): Promise<void> {
+    if (!this._docUri) return;
+    const line = Math.max(0, line1Based - 1);
+    const range = new vscode.Range(line, 0, line, 0);
+
+    const visible = vscode.window.visibleTextEditors.find(
+      e => e.document.uri.toString() === this._docUri!.toString()
+    );
+    const editor = visible ?? await vscode.window.showTextDocument(this._docUri, {
+      viewColumn: vscode.ViewColumn.One,
+      preserveFocus: false,
+    });
+
+    editor.selection = new vscode.Selection(range.start, range.end);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+    await vscode.window.showTextDocument(editor.document, {
+      viewColumn: editor.viewColumn,
+      preserveFocus: false,
+    });
+  }
+
+  public update(fsms: ParsedFsm[], title: string, docUri?: vscode.Uri): void {
+    if (docUri) this._docUri = docUri;
     if (this._panel.visible) this._update(fsms, title);
   }
 
@@ -227,6 +245,7 @@ body.light .tp-line-link:hover{color:#3b82f6;}
    No CSS var() is used inside SVG attribute values.
    ========================================================================== */
 
+const vscodeApi = acquireVsCodeApi();
 const FSM_DATA     = ${fsmData};
 const THEME_SETTING= "${themeSetting}";
 
@@ -834,8 +853,7 @@ function buildTransitionsPanel(fsm){
       lineLink.textContent=String(tr.line);
       lineLink.onclick=(ev)=>{
         ev.stopPropagation();
-        const vscode=acquireVsCodeApi();
-        vscode.postMessage({command:'goToLine',line:tr.line});
+        vscodeApi.postMessage({command:'goToLine',line:tr.line});
       };
       tdLine.appendChild(lineLink);
       row.appendChild(tdFrom); row.appendChild(tdTo); row.appendChild(tdCond); row.appendChild(tdLine);
