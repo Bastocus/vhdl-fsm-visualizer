@@ -75,7 +75,7 @@ to packaging-related files.
 ## Releasing to GitHub
 When ready to release a new version:
 1. **Create a GitHub release** with tag `vX.Y.Z` matching the version in `package.json`
-2. **Build the VSIX**: `npx vsce package` (creates `vhdl-fsm-visualizer-X.Y.Z.vsix`)
+2. **Build the VSIX**: `npx vsce package` (creates `vhdl-fsm-diagram-X.Y.Z.vsix`)
 3. **Upload the VSIX** to the GitHub release as an asset using the API:
    ```bash
    # Get the GitHub token from ~/.claude/settings.json (GITHUB_TOKEN field)
@@ -83,13 +83,13 @@ When ready to release a new version:
    # Use --data-binary (NOT -d @filename) for binary uploads
    curl -X POST -H "Authorization: token $TOKEN" \
      -H "Content-Type: application/octet-stream" \
-     --data-binary "@vhdl-fsm-visualizer-X.Y.Z.vsix" \
-     "https://uploads.github.com/repos/Bastocus/vhdl-fsm-visualizer/releases/{release_id}/assets?name=vhdl-fsm-visualizer-X.Y.Z.vsix"
+     --data-binary "@vhdl-fsm-diagram-X.Y.Z.vsix" \
+     "https://uploads.github.com/repos/Bastocus/vhdl-fsm-visualizer/releases/{release_id}/assets?name=vhdl-fsm-diagram-X.Y.Z.vsix"
    ```
 4. **Verify the upload** by downloading and comparing SHA256:
-   - Calculate local SHA256: `sha256sum vhdl-fsm-visualizer-X.Y.Z.vsix`
+   - Calculate local SHA256: `sha256sum vhdl-fsm-diagram-X.Y.Z.vsix`
    - Download from release and verify SHA256 matches
-   - Confirm VSIX is a valid ZIP: `unzip -t vhdl-fsm-visualizer-X.Y.Z.vsix` (should report "No errors detected")
+   - Confirm VSIX is a valid ZIP: `unzip -t vhdl-fsm-diagram-X.Y.Z.vsix` (should report "No errors detected")
    
    If checksums don't match, delete the asset and re-upload with `--data-binary`.
 

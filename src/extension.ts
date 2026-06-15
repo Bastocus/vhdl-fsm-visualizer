@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── Command: Show Diagram ──────────────────────────────────────────────
   const showCmd = vscode.commands.registerCommand(
-    'vhdl-fsm-visualizer.showDiagram',
+    'vhdl-fsm-diagram.showDiagram',
     () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── Auto-refresh on save ───────────────────────────────────────────────
   const onSave = vscode.workspace.onDidSaveTextDocument((doc) => {
-    const config = vscode.workspace.getConfiguration('vhdl-fsm-visualizer');
+    const config = vscode.workspace.getConfiguration('vhdl-fsm-diagram');
     if (!config.get<boolean>('autoRefresh', true)) return;
     if (!isVhdlDocument(doc)) return;
     if (!FsmPanel.currentPanel) return;
