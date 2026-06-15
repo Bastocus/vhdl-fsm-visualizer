@@ -965,6 +965,7 @@ function attachEvents(wrap){
   });
   window.addEventListener('mousemove',e=>{
     if(!panning) return;
+    hideTooltip();
     panX=e.clientX-px0; panY=e.clientY-py0; applyT();
   });
   window.addEventListener('mouseup',()=>{
