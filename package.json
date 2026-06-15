@@ -1,8 +1,8 @@
 {
-  "name": "vhdl-fsm-visualizer",
+  "name": "vhdl-fsm-diagram",
   "displayName": "VHDL FSM Visualizer",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
-  "version": "0.9.8",
+  "version": "1.0.0",
   "publisher": "Bastocus",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -30,13 +30,13 @@
   ],
   "activationEvents": [
     "onLanguage:vhdl",
-    "onCommand:vhdl-fsm-visualizer.showDiagram"
+    "onCommand:vhdl-fsm-diagram.showDiagram"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "vhdl-fsm-visualizer.showDiagram",
+        "command": "vhdl-fsm-diagram.showDiagram",
         "title": "VHDL: Show FSM Diagram",
         "icon": "$(type-hierarchy)"
       }
@@ -44,14 +44,14 @@
     "menus": {
       "editor/title": [
         {
-          "command": "vhdl-fsm-visualizer.showDiagram",
+          "command": "vhdl-fsm-diagram.showDiagram",
           "when": "resourceLangId == vhdl",
           "group": "navigation"
         }
       ],
       "editor/context": [
         {
-          "command": "vhdl-fsm-visualizer.showDiagram",
+          "command": "vhdl-fsm-diagram.showDiagram",
           "when": "resourceLangId == vhdl",
           "group": "navigation"
         }
@@ -73,12 +73,12 @@
     "configuration": {
       "title": "VHDL FSM Visualizer",
       "properties": {
-        "vhdl-fsm-visualizer.autoRefresh": {
+        "vhdl-fsm-diagram.autoRefresh": {
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh the diagram when the file is saved"
         },
-        "vhdl-fsm-visualizer.theme": {
+        "vhdl-fsm-diagram.theme": {
           "type": "string",
           "enum": [
             "dark",

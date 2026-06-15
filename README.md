@@ -40,8 +40,8 @@ own tab in the panel.
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `vhdl-fsm-visualizer.autoRefresh` | `true` | Automatically refresh the diagram when the file is saved. |
-| `vhdl-fsm-visualizer.theme` | `auto` | Color theme for the FSM diagram (`dark`, `light`, or `auto` to follow the VS Code theme). |
+| `vhdl-fsm-diagram.autoRefresh` | `true` | Automatically refresh the diagram when the file is saved. |
+| `vhdl-fsm-diagram.theme` | `auto` | Color theme for the FSM diagram (`dark`, `light`, or `auto` to follow the VS Code theme). |
 
 ## What gets detected
 

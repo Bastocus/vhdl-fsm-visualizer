@@ -75,7 +75,7 @@ export class FsmPanel {
   }
 
   private _getHtml(fsms: ParsedFsm[], title: string): string {
-    const config        = vscode.workspace.getConfiguration('vhdl-fsm-visualizer');
+    const config        = vscode.workspace.getConfiguration('vhdl-fsm-diagram');
     const themeSetting  = config.get<string>('theme', 'auto');
     const fsmData       = JSON.stringify(fsms);
 
