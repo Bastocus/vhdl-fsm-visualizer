@@ -1,6 +1,6 @@
 {
   "name": "vhdl-fsm-diagram",
-  "displayName": "VHDL FSM Visualizer",
+  "displayName": "VHDL FSM Diagram",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
   "version": "1.0.0",
   "publisher": "Bastocus",
@@ -71,7 +71,7 @@
       }
     ],
     "configuration": {
-      "title": "VHDL FSM Visualizer",
+      "title": "VHDL FSM Diagram",
       "properties": {
         "vhdl-fsm-diagram.autoRefresh": {
           "type": "boolean",

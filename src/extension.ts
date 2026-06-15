@@ -5,7 +5,7 @@ import { FsmPanel } from './panel';
 let lastDocUri: string | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
-  console.log('[VHDL FSM Visualizer] Extension activated');
+  console.log('[VHDL FSM Diagram] Extension activated');
 
   // ── Command: Show Diagram ──────────────────────────────────────────────
   const showCmd = vscode.commands.registerCommand(

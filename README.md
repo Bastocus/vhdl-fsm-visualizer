@@ -1,4 +1,4 @@
-# VHDL FSM Visualizer
+# VHDL FSM Diagram
 
 Automatically detects finite state machines in your VHDL source files and renders them as an
 interactive, clickable diagram — right inside VS Code.
