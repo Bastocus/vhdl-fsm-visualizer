@@ -2,7 +2,7 @@
 
 **GitHub Issue:** [#2](https://github.com/Bastocus/vhdl-fsm-diagram/issues/2)
 
-**Status:** Not started
+**Status:** Done — Phases A and B implemented; issue closed.
 
 ## Problem Statement
 
@@ -152,8 +152,10 @@ This fixture won't have automated assertions (labels are visual), but can be man
 ## Success criteria
 
 - [x] Issue is understood and documented
-- [ ] Phase A implemented and tested locally
-- [ ] Phase B implemented and tested with `dense_layout.vhd`
-- [ ] No regression in existing 10 fixtures
-- [ ] VSIX built, version bumped, commit pushed
-- [ ] GitHub issue closed with explanatory comment
+- [x] Phase A implemented and tested locally
+- [x] Phase B implemented and tested with `dense_layout.vhd`
+- [x] No regression in existing fixtures
+- [x] VSIX built, version bumped, commit pushed
+- [x] GitHub issue closed with explanatory comment
+
+Phase C (multi-edge spacing) was not needed — Phase A+B resolved the readability issue.

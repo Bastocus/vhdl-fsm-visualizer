@@ -129,7 +129,7 @@ fixtures stay green plus its own new ones pass.
 | **1 — Recursive parser core (Part A)** | Replace flatten-and-walk with `parseStatements`; nested `if/elsif/else`, nested `case`, full AND-chain + negation | New parser internals in `src/parser.ts` | `single_process`, `nested_if`, `if_elsif_else`, `nested_case`, `nested_if_in_case` all green | **Opus 4.8, high** (hardest logic) | Done (v0.3.0) — [`497cf8d`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/497cf8d), [`f718ec8`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/f718ec8) |
 | **2 — Two-process FSMs (Part B)** | Group signals by enum type; accept assignments to any same-type signal; one merged `ParsedFsm` | `extractFsmSignals` + `parse()` changes | All Phase-1 fixtures stay green; `two_process` green | **Opus 4.8, medium–high** | Done (v0.4.0–0.4.1) — [`5faa50a`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/5faa50a), [`6e2b0dc`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/6e2b0dc) |
 | **3 — `when others` / multi-label / `:=` (Part C)** | Expand `others`→uncovered states, `s1\|s2`→per-label; recognize `:=` | arm-expansion in case handling | All prior fixtures green; `when_others`, `when_multi_label`, `variable_assign` green | **Sonnet 4.6, medium** | Done (v0.5.0–0.5.1) — [`ddd7daa`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/ddd7daa), [`0522104`](https://github.com/Bastocus/vhdl-fsm-diagram/commit/0522104) |
-| **4 — Transitions table UI (Part D)** | Additive panel in `src/panel.ts`; no diagram-visual changes | collapsible From/To/Condition/Line table, row↔edge highlight | Parser tests still green (UI doesn't touch parser); manual smoke test | **Sonnet 4.6, medium** | Not started |
+| **4 — Transitions table UI (Part D)** | Additive panel in `src/panel.ts`; no diagram-visual changes | collapsible From/To/Condition/Line table, row↔edge highlight | Parser tests still green (UI doesn't touch parser); manual smoke test | **Sonnet 4.6, medium** | Done |
 
 Rationale: only Phase 1 (and the type-grouping in Phase 2) carries real algorithmic risk →
 Opus/high. Phases 0/3/4 are mechanical or additive → Sonnet is sufficient and cheaper. Each phase
@@ -152,6 +152,15 @@ One file per corner case, each with a comment header stating the expected transi
 - `when_others.vhd` — `when others => state <= idle;`.
 - `when_multi_label.vhd` — `when s1 | s2 =>`.
 - `variable_assign.vhd` — `:=` assignment of a variable holding state.
+- `case_line_second_block.vhd` — `case` selector and assignment target declared in separate signal
+  declarations.
+- `two_fsm_types.vhd` — two independent FSMs (distinct enum types) in one file.
+- `two_process_split_decl.vhd` — two-process FSM with `current_state`/`next_state` declared
+  separately.
+- `or_and_precedence.vhd` — mixed `and`/`or` condition precedence.
+- `self_loop.vhd` — a state transitioning back to itself.
+- `dense_layout.vhd` — many states/transitions, used to verify `...` label placement and
+  collision avoidance (issue #2).
 
 ### Runner — `test/run.ts` + npm script
 
@@ -191,5 +200,5 @@ Each phase is committed separately and leaves `npm test` runnable as the regress
 
 ## Out of scope / follow-ups
 
-- Click-to-jump from table row to the VHDL source line (handler stub only for now).
+- Click-to-jump from table row to the VHDL source line — implemented since v0.6.x.
 - `for`/`while` loop constructs and `:=` to non-state variables.
