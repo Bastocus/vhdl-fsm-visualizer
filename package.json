@@ -3,7 +3,7 @@
   "displayName": "VHDL FSM Visualizer",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
   "version": "0.9.7",
-  "publisher": "Bastosaurus",
+  "publisher": "Bastocus",
   "license": "MIT",
   "icon": "media/icon.png",
   "repository": {
