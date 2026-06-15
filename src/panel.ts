@@ -645,9 +645,17 @@ function render(){
     };
 
     eGrp.appendChild(pathEl);
-    pathEl.style.cursor='pointer';
+    pathEl.setAttribute('cursor','pointer');
     pathEl.addEventListener('click',toggleEdgeFilter);
     geo.pathEl=pathEl;
+
+    // Invisible wider hit-area on top of the (thin) visible path, so the
+    // arrow is much easier to click without changing its drawn weight.
+    const hitEl=el('path',{
+      d:pathD,fill:'none',stroke:'transparent','stroke-width':12,cursor:'pointer',
+    });
+    eGrp.appendChild(hitEl);
+    hitEl.addEventListener('click',toggleEdgeFilter);
 
     // ── Label: always shows "..." ──────────────────────────────────────
     // Clicking it reveals the condition(s) in a tooltip and filters the table.

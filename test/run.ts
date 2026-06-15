@@ -47,6 +47,12 @@ function parseExpectations(source: string): Expected[] {
   return out;
 }
 
+/** `-- EXPECT_CASELINE <n>` asserts fsms[0].caseLine === n, if present. */
+function parseCaseLineExpectation(source: string): number | null {
+  const m = source.match(/--\s*EXPECT_CASELINE\s+(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
 function matches(exp: Expected, tr: FsmTransition): boolean {
   if (norm(exp.from) !== norm(tr.from)) return false;
   if (norm(exp.to) !== norm(tr.to)) return false;
@@ -85,12 +91,14 @@ function main(): void {
     const base = file.replace(/\.vhd$/, '');
     const source = fs.readFileSync(path.join(dir, file), 'utf8');
     const expected = parseExpectations(source);
+    const expectedCaseLine = parseCaseLineExpectation(source);
 
     const result = new VhdlFsmParser().parse(source);
     const actual = result.fsms.flatMap(f => f.transitions);
 
     const { missing, extra } = diff(expected, actual);
-    const ok = missing.length === 0 && extra.length === 0 && result.errors.length === 0;
+    const caseLineOk = expectedCaseLine === null || result.fsms[0]?.caseLine === expectedCaseLine;
+    const ok = missing.length === 0 && extra.length === 0 && result.errors.length === 0 && caseLineOk;
     const known = KNOWN_FAILS.has(base);
 
     if (ok) {
@@ -109,6 +117,7 @@ function main(): void {
     if (result.errors.length) console.log(`        errors: ${result.errors.join('; ')}`);
     for (const e of missing) console.log(`        missing: ${fmtExp(e)}`);
     for (const x of extra)   console.log(`        extra:   ${fmtTr(x)}`);
+    if (!caseLineOk) console.log(`        caseLine: expected ${expectedCaseLine}, got ${result.fsms[0]?.caseLine}`);
     if (!known) realFails++;
   }
 

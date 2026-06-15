@@ -227,19 +227,28 @@ export class VhdlFsmParser {
     const headerRe = new RegExp(`\\bcase\\s+(${sigAlt})\\s+is\\b`, 'g');
     let selector: string | undefined;
     let caseLine: number | undefined;
+    let fallbackCaseLine: number | undefined;
     let hm: RegExpExecArray | null;
     while ((hm = headerRe.exec(this.normalised)) !== null) {
       const selStart = hm.index + /^case\s+/.exec(hm[0])![0].length;
+      const thisCaseLine = this.offsetToLine(hm.index);
       if (selector === undefined) {
         selector = this.originalAt(selStart, hm[1].length);
-        caseLine = this.offsetToLine(hm.index);
+        fallbackCaseLine = thisCaseLine;
       }
       const bodyStart = hm.index + hm[0].length;
       const bodyEnd   = this.findMatchingEndCase(bodyStart);
       if (bodyEnd < 0) continue;
+      const before = ctx.out.length;
       this.parseTopCase(bodyStart, bodyEnd, ctx);
+      // Prefer the line of the first case block that actually assigns the FSM
+      // signal (produces transitions) — a case that only branches on the
+      // current state without ever changing it is not "where the FSM is".
+      if (caseLine === undefined && ctx.out.length > before) {
+        caseLine = thisCaseLine;
+      }
     }
-    return { transitions: ctx.out, selector, caseLine, stateLines: ctx.stateLines };
+    return { transitions: ctx.out, selector, caseLine: caseLine ?? fallbackCaseLine, stateLines: ctx.stateLines };
   }
 
   /**
