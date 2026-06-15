@@ -627,9 +627,10 @@ function render(){
       'marker-end':'url(#'+aId+')','stroke-linecap':'round',
       opacity:op,
     });
-    // Click on arrow/pill → toggle filter + tooltip
+    // Click on arrow/pill → toggle filter. The "..." pill also shows the
+    // conditions popup; clicking the arrow itself only filters the table.
     const isFilteredEdge=tableFilterEdge&&edge.from===tableFilterEdge.from&&edge.to===tableFilterEdge.to;
-    const toggleEdgeFilter=(ev)=>{
+    const toggleEdgeFilter=(showPopup)=>(ev)=>{
       ev.stopPropagation();
       selected=null; focusMode=0;
       if(isFilteredEdge){
@@ -637,16 +638,16 @@ function render(){
         tableFilterEdge=null;
         render();
       } else {
-        // Filter to this edge and show the popup
+        // Filter to this edge, optionally showing the popup
         tableFilterEdge={from:edge.from,to:edge.to};
         render();
-        showEdgeTooltip(ev.clientX, ev.clientY, edge);
+        if(showPopup) showEdgeTooltip(ev.clientX, ev.clientY, edge);
       }
     };
 
     eGrp.appendChild(pathEl);
     pathEl.setAttribute('cursor','pointer');
-    pathEl.addEventListener('click',toggleEdgeFilter);
+    pathEl.addEventListener('click',toggleEdgeFilter(false));
     geo.pathEl=pathEl;
 
     // Invisible wider hit-area on top of the (thin) visible path, so the
@@ -655,7 +656,7 @@ function render(){
       d:pathD,fill:'none',stroke:'transparent','stroke-width':12,cursor:'pointer',
     });
     eGrp.appendChild(hitEl);
-    hitEl.addEventListener('click',toggleEdgeFilter);
+    hitEl.addEventListener('click',toggleEdgeFilter(false));
 
     // ── Label: always shows "..." ──────────────────────────────────────
     // Clicking it reveals the condition(s) in a tooltip and filters the table.
@@ -677,8 +678,8 @@ function render(){
     });
     ltxt.textContent='...';
 
-    lbg.addEventListener('click',toggleEdgeFilter);
-    ltxt.addEventListener('click',toggleEdgeFilter);
+    lbg.addEventListener('click',toggleEdgeFilter(true));
+    ltxt.addEventListener('click',toggleEdgeFilter(true));
 
     // Add title to rect for native SVG tooltips
     const ttl=el('title');
