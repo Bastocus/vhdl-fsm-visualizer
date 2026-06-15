@@ -1,0 +1,15 @@
+.claude/**
+.vscode/**
+.vscode-test/**
+src/**
+test/**
+docs/**
+out/**/*.map
+.gitignore
+.vscodeignore
+tsconfig.json
+tsconfig.test.json
+build-vsix.ps1
+build-vsix.bat
+CLAUDE.md
+**/*.vsix
