@@ -66,6 +66,12 @@ Before each commit, the assistant should:
 The version is also used for VSIX packaging (`build-vsix.ps1`/`build-vsix.bat`), so
 each distinct build must have a new version to avoid conflicts when testing locally.
 
+## Packaging (.vscodeignore)
+The VSIX must **not** include source (`src/`, `test/`, `docs/`), build configs, or `.claude/`
+(local settings may contain secrets) — only `LICENSE`, `README.md`, `media/`, `out/*.js`, and
+`package.json`. Keep `.vscodeignore` up to date and spot-check with `npx vsce ls` after changes
+to packaging-related files.
+
 ## Releasing to GitHub
 When ready to release a new version:
 1. **Create a GitHub release** with tag `vX.Y.Z` matching the version in `package.json`
