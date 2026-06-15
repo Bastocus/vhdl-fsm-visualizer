@@ -1,4 +1,4 @@
-# VHDL FSM Visualizer — Project Guide
+# VHDL FSM Diagram — Project Guide
 
 VS Code extension that detects finite state machines in VHDL and renders an interactive SVG
 diagram. Source files in `src/` folder (no build step needed to read them).
