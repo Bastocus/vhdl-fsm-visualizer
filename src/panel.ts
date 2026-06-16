@@ -235,6 +235,11 @@ body.light .tp-line-link:hover{color:#b45309;}
   <button class="btn" onclick="resetZoom()">Reset</button>
   <div class="sep"></div>
   <button class="btn" onclick="exportSvg()">Export SVG</button>
+  <div class="sep"></div>
+  <button class="btn" id="theme-btn" onclick="toggleTheme()">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1v12a6 6 0 000-12z"/></svg>
+    Theme
+  </button>
   <span class="hint">Scroll=zoom &middot; Drag=pan &middot; Click state or label for details &middot; Ctrl+Click to go to source</span>
 </div>
 
@@ -253,29 +258,43 @@ const vscodeApi = acquireVsCodeApi();
 const FSM_DATA     = ${fsmData};
 const THEME_SETTING= "${themeSetting}";
 
-const IS_LIGHT = THEME_SETTING==='light' ||
+let isLight = THEME_SETTING==='light' ||
   (THEME_SETTING==='auto' && window.matchMedia('(prefers-color-scheme:light)').matches);
-if (IS_LIGHT) document.body.classList.add('light');
+if (isLight) document.body.classList.add('light');
 
-const C = IS_LIGHT ? {
-  bg:'#fef7f0', stateFill:'#fce7d8', stateStroke:'#d97706',
-  stateSelFill:'#d97706', stateShadow:'rgba(217,119,6,0.25)',
-  text:'#3d3229', textMuted:'#8b7355',
-  accent:'#d97706', accent2:'#b45309',
-  edgeColor:'#9a6b48', edgeDim:'#e8dccf',
-  labelBg:'#ffffff', labelBorder:'#e8dccf', labelHlBorder:'#d97706',
-  labelText:'#9a6b48', labelTextHl:'#d97706',
-  initialColor:'#059669',
-} : {
-  bg:'#0f1117', stateFill:'#1e2235', stateStroke:'#4f9cf9',
-  stateSelFill:'#4f9cf9', stateShadow:'rgba(79,156,249,0.30)',
-  text:'#e2e8f0', textMuted:'#8892a4',
-  accent:'#4f9cf9', accent2:'#a78bfa',
-  edgeColor:'#94a3b8', edgeDim:'#2e3350',
-  labelBg:'#1a1d27', labelBorder:'#2e3350', labelHlBorder:'#4f9cf9',
-  labelText:'#8892a4', labelTextHl:'#4f9cf9',
-  initialColor:'#34d399',
-};
+function buildC(light) {
+  return light ? {
+    bg:'#fef7f0', stateFill:'#fce7d8', stateStroke:'#d97706',
+    stateSelFill:'#d97706', stateShadow:'rgba(217,119,6,0.25)',
+    text:'#3d3229', textMuted:'#8b7355',
+    accent:'#d97706', accent2:'#b45309',
+    edgeColor:'#9a6b48', edgeDim:'#e8dccf',
+    labelBg:'#ffffff', labelBorder:'#e8dccf', labelHlBorder:'#d97706',
+    labelText:'#9a6b48', labelTextHl:'#d97706',
+    initialColor:'#059669',
+  } : {
+    bg:'#0f1117', stateFill:'#1e2235', stateStroke:'#4f9cf9',
+    stateSelFill:'#4f9cf9', stateShadow:'rgba(79,156,249,0.30)',
+    text:'#e2e8f0', textMuted:'#8892a4',
+    accent:'#4f9cf9', accent2:'#a78bfa',
+    edgeColor:'#94a3b8', edgeDim:'#2e3350',
+    labelBg:'#1a1d27', labelBorder:'#2e3350', labelHlBorder:'#4f9cf9',
+    labelText:'#8892a4', labelTextHl:'#4f9cf9',
+    initialColor:'#34d399',
+  };
+}
+
+let C = buildC(isLight);
+
+function toggleTheme(){
+  isLight=!isLight;
+  if(isLight) document.body.classList.add('light');
+  else document.body.classList.remove('light');
+  C=buildC(isLight);
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.title=isLight?'Switch to dark theme':'Switch to light theme';
+  render();
+}
 
 let currentFsm=0, zoom=1, panX=0, panY=0;
 let panning=false, px0=0, py0=0;
@@ -900,7 +919,7 @@ function showEdgeTooltip(mx, my, edge){
   // Header: "from → to"
   const hdr=document.createElement('div');
   hdr.className='tt-header';
-  hdr.textContent=edge.from+' \u2192 '+edge.to;
+  hdr.textContent=edge.from+' → '+edge.to;
   tt.appendChild(hdr);
 
   // One row per condition
@@ -1111,6 +1130,7 @@ function exportSvg(){
 
 buildTabs();
 render();
+(()=>{ const b=document.getElementById('theme-btn'); if(b) b.title=isLight?'Switch to dark theme':'Switch to light theme'; })();
 </script>
 </body>
 </html>`;
