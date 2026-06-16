@@ -149,23 +149,34 @@ async function main() {
       await page.close();
     }
 
-    // ── Screenshot 5: Dense layout — 8 states ────────────────────────────────
+    // ── Screenshot 5: Multiple FSM tabs — highlight the tabs with red outline ──
     {
-      const { fsms, title } = parseFsms('dense_layout.vhd');
+      const { fsms, title } = parseFsms('two_fsm_types.vhd');
       const html = buildHtml(fsms, title, 'dark');
       const tmpPath = '/tmp/fsm_s5.html';
       writeFileSync(tmpPath, html);
 
       const page = await browser.newPage();
-      await page.setViewport({ width: 1280, height: 800 });
+      await page.setViewport({ width: 1200, height: 700 });
       await page.goto(`file://${tmpPath}`, { waitUntil: 'networkidle0' });
-      await screenshot(page, resolve(mediaDir, 'screenshot_dense_fsm.png'));
+      await sleep(800);
+
+      // Add red border around the tab bar to highlight the tabs
+      await page.evaluate(() => {
+        const tabBar = document.getElementById('tab-bar');
+        if (tabBar) {
+          tabBar.style.outline = '3px solid #ff4444';
+          tabBar.style.outlineOffset = '-3px';
+        }
+      });
+
+      await screenshot(page, resolve(mediaDir, 'screenshot_multiple_fsms.png'));
       await page.close();
     }
 
-    // ── Screenshot 6: Two FSM tabs ────────────────────────────────────────────
+    // ── Screenshot 6: State selection with outgoing focus ─────────────────────
     {
-      const { fsms, title } = parseFsms('two_fsm_types.vhd');
+      const { fsms, title } = parseFsms('nested_if.vhd');
       const html = buildHtml(fsms, title, 'dark');
       const tmpPath = '/tmp/fsm_s6.html';
       writeFileSync(tmpPath, html);
@@ -173,15 +184,59 @@ async function main() {
       const page = await browser.newPage();
       await page.setViewport({ width: 1200, height: 700 });
       await page.goto(`file://${tmpPath}`, { waitUntil: 'networkidle0' });
-      await screenshot(page, resolve(mediaDir, 'screenshot_multiple_fsms.png'));
+      await sleep(800);
+
+      // Click the first state, then click again to switch to focusMode=1 (outgoing)
+      await page.evaluate(() => {
+        const stateNode = document.querySelector('[data-state]');
+        if (stateNode) {
+          stateNode.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+      });
+      await sleep(400);
+      await page.evaluate(() => {
+        const stateNode = document.querySelector('[data-state]');
+        if (stateNode) {
+          stateNode.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+      });
+
+      await screenshot(page, resolve(mediaDir, 'screenshot_outgoing_focus.png'));
       await page.close();
     }
 
-    // ── Screenshot 7: Tooltip on "..." pill ──────────────────────────────────
+    // ── Screenshot 7: State selection with incoming focus ──────────────────────
     {
       const { fsms, title } = parseFsms('nested_if.vhd');
       const html = buildHtml(fsms, title, 'dark');
       const tmpPath = '/tmp/fsm_s7.html';
+      writeFileSync(tmpPath, html);
+
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1200, height: 700 });
+      await page.goto(`file://${tmpPath}`, { waitUntil: 'networkidle0' });
+      await sleep(800);
+
+      // Click the first state three times to reach focusMode=2 (incoming)
+      for (let i = 0; i < 3; i++) {
+        await page.evaluate(() => {
+          const stateNode = document.querySelector('[data-state]');
+          if (stateNode) {
+            stateNode.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          }
+        });
+        await sleep(200);
+      }
+
+      await screenshot(page, resolve(mediaDir, 'screenshot_incoming_focus.png'));
+      await page.close();
+    }
+
+    // ── Screenshot 8: Tooltip on "..." pill ──────────────────────────────────
+    {
+      const { fsms, title } = parseFsms('nested_if.vhd');
+      const html = buildHtml(fsms, title, 'dark');
+      const tmpPath = '/tmp/fsm_s8.html';
       writeFileSync(tmpPath, html);
 
       const page = await browser.newPage();
