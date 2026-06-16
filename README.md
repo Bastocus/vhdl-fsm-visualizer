@@ -23,6 +23,29 @@ interactive, clickable diagram — right inside VS Code.
   (configurable).
 - **Light / dark / auto theme** — matches your VS Code color theme by default.
 
+## Screenshots
+
+**Dark theme — 3-state two-process FSM**
+![FSM diagram overview in dark theme](media/screenshot_overview.png)
+
+**Light theme**
+![FSM diagram in light theme](media/screenshot_light_theme.png)
+
+**State selected — glow highlight with connected transitions**
+![A state selected, highlighting incoming and outgoing transitions](media/screenshot_state_selected.png)
+
+**Transitions table — every From / To / Condition / Line in one place**
+![Transitions table expanded below the diagram](media/screenshot_transitions_table.png)
+
+**Dense layout — 8-state FSM with 36 transitions**
+![Dense FSM layout with 8 states and many cross-connections](media/screenshot_dense_fsm.png)
+
+**Multiple FSMs — separate tabs per enum type**
+![Two FSM tabs from the same VHDL file](media/screenshot_multiple_fsms.png)
+
+**Condition tooltip — click `...` to reveal the full guard expression**
+![Tooltip showing the full condition for a transition](media/screenshot_condition_tooltip.png)
+
 ## Usage
 
 1. Open a `.vhd` or `.vhdl` file that contains a state-machine `case` statement on an
