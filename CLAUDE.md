@@ -66,6 +66,10 @@ to packaging-related files.
 Releases are handled entirely by the GitHub Actions workflow at `.github/workflows/release.yml`.
 No local VSIX build is needed.
 
+**CRITICAL: Never trigger a release autonomously.** Only create a release when the user explicitly
+asks for it (e.g., "release version X", "publish a new release"). Do not trigger a release as a
+side-effect of implementing a feature or bug fix.
+
 ### Steps
 1. **Bump the version** in `package.json`, run compile + test, commit and push to `main`.
 2. **Trigger the release workflow** — two options:
