@@ -31,14 +31,17 @@ interactive, clickable diagram — right inside VS Code.
 **Light theme**
 ![FSM diagram in light theme](media/screenshot_light_theme.png)
 
-**State selected — glow highlight with connected transitions**
+**State selected — glow highlight with both directions**
 ![A state selected, highlighting incoming and outgoing transitions](media/screenshot_state_selected.png)
+
+**State selection — outgoing focus mode (click state again to filter)**
+![A state selected showing only outgoing transitions](media/screenshot_outgoing_focus.png)
+
+**State selection — incoming focus mode (click state a third time)**
+![A state selected showing only incoming transitions](media/screenshot_incoming_focus.png)
 
 **Transitions table — every From / To / Condition / Line in one place**
 ![Transitions table expanded below the diagram](media/screenshot_transitions_table.png)
-
-**Dense layout — 8-state FSM with 36 transitions**
-![Dense FSM layout with 8 states and many cross-connections](media/screenshot_dense_fsm.png)
 
 **Multiple FSMs — separate tabs per enum type**
 ![Two FSM tabs from the same VHDL file](media/screenshot_multiple_fsms.png)
