@@ -2,7 +2,7 @@
   "name": "vhdl-fsm-diagram",
   "displayName": "VHDL FSM Diagram",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "Bastocus",
   "license": "MIT",
   "icon": "media/icon.png",
