@@ -655,7 +655,9 @@ function render(){
     const isFilteredEdge=tableFilterEdge&&edge.from===tableFilterEdge.from&&edge.to===tableFilterEdge.to;
     const toggleEdgeFilter=(showPopup)=>(ev)=>{
       ev.stopPropagation();
-      selected=null; focusMode=0;
+      // Preserve the state selection when clicking a highlighted edge (one connected to the selected state).
+      // Only clear the selection if the clicked edge is unrelated to the current highlight.
+      if(!(selected && isEdgeHL(edge))){ selected=null; focusMode=0; }
       if(isFilteredEdge){
         // Already filtered to this edge → clear the filter and close the popup
         tableFilterEdge=null;
