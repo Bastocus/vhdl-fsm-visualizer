@@ -13,3 +13,5 @@ build-vsix.ps1
 build-vsix.bat
 CLAUDE.md
 **/*.vsix
+scripts/**
+.github/**
