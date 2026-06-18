@@ -44,7 +44,7 @@ function buildHtml(fsms, title, theme = 'dark') {
   }
   html = html.replace('${esc(title)}', escHtml(title));
   html = html.replace('${fsmData}', JSON.stringify(fsms));
-  html = html.replace('"${themeSetting}"', `"${theme}"`);
+  html = html.replace('"${themeHint}"', `"${theme}"`);
 
   // Stub acquireVsCodeApi() so the page JS doesn't throw
   html = html.replace(

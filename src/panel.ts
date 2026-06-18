@@ -538,8 +538,13 @@ function render(){
 
   toolbar.style.display='flex';
   const fsm=FSM_DATA[currentFsm];
-  const maxLen=fsm.states.length?Math.max(...fsm.states.map(s=>s.name.length)):8;
-  const R=maxLen<=10?48:maxLen<=16?56:maxLen<=22?64:Math.min(80,32+maxLen*2);
+  function stateLines(name){
+    if(name.length>20){const p=name.split('_'),t=Math.ceil(p.length/3);return[p.slice(0,t).join('_'),p.slice(t,t*2).join('_'),p.slice(t*2).join('_')].filter(s=>s);}
+    if(name.length>14){const p=name.split('_'),h=Math.ceil(p.length/2);return[p.slice(0,h).join('_'),p.slice(h).join('_')].filter(s=>s);}
+    return[name];
+  }
+  const maxLineLen=fsm.states.length?Math.max(...fsm.states.map(s=>Math.max(...stateLines(s.name).map(l=>l.length)))):8;
+  const R=maxLineLen<=8?48:maxLineLen<=12?56:maxLineLen<=16?64:Math.min(80,32+maxLineLen*2.5);
   main.innerHTML='';
 
   const wrap=document.createElement('div');
@@ -810,23 +815,23 @@ function render(){
 
     // State name — original case preserved from parser
     const name=state.name;
-    const fs=name.length>22?'11':name.length>18?'12':name.length>12?'14':name.length>8?'15':'16';
+    const lines=stateLines(name);
+    const mll=Math.max(...lines.map(l=>l.length));
+    const fs=mll>16?'11':mll>12?'12':mll>8?'14':mll>6?'15':'16';
     const lbl=el('text',{
       x:p.x,y:p.y,'text-anchor':'middle','dominant-baseline':'middle',
       fill:isSel?'#ffffff':C.text,
       'font-family':"Consolas,'Cascadia Code','Fira Code',monospace",
       'font-size':fs,'font-weight':'500',
     });
-    if(name.length>20){
-      const parts=name.split('_'),t=Math.ceil(parts.length/3);
-      const t1=el('tspan',{x:p.x,dy:'-1.2em'}); t1.textContent=parts.slice(0,t).join('_');
-      const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=parts.slice(t,t*2).join('_');
-      const t3=el('tspan',{x:p.x,dy:'1.2em'});  t3.textContent=parts.slice(t*2).join('_');
+    if(lines.length===3){
+      const t1=el('tspan',{x:p.x,dy:'-1.2em'}); t1.textContent=lines[0];
+      const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=lines[1];
+      const t3=el('tspan',{x:p.x,dy:'1.2em'});  t3.textContent=lines[2];
       lbl.appendChild(t1); lbl.appendChild(t2); lbl.appendChild(t3);
-    } else if(name.length>14){
-      const parts=name.split('_'), h=Math.ceil(parts.length/2);
-      const t1=el('tspan',{x:p.x,dy:'-0.6em'}); t1.textContent=parts.slice(0,h).join('_');
-      const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=parts.slice(h).join('_');
+    } else if(lines.length===2){
+      const t1=el('tspan',{x:p.x,dy:'-0.6em'}); t1.textContent=lines[0];
+      const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=lines[1];
       lbl.appendChild(t1); lbl.appendChild(t2);
     } else { lbl.textContent=name; }
     sg.appendChild(lbl);
