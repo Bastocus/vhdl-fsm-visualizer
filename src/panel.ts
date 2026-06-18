@@ -3,6 +3,7 @@ import { ParsedFsm } from './parser';
 
 export class FsmPanel {
   public static currentPanel: FsmPanel | undefined;
+  private static _savedTheme: boolean | null = null;
   private static readonly viewType = 'vhdlFsmDiagram';
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionUri: vscode.Uri;
@@ -24,6 +25,7 @@ export class FsmPanel {
       { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [extensionUri] }
     );
     FsmPanel.currentPanel = new FsmPanel(panel, extensionUri);
+    FsmPanel.currentPanel._lightTheme = FsmPanel._savedTheme;
     FsmPanel.currentPanel._docUri = docUri;
     FsmPanel.currentPanel._update(fsms, title);
   }
@@ -38,6 +40,7 @@ export class FsmPanel {
       }
       if (msg.type === 'themeChange' && typeof msg.isLight === 'boolean') {
         this._lightTheme = msg.isLight;
+        FsmPanel._savedTheme = msg.isLight;
       }
       if (msg.type === 'lockChange' && typeof msg.locked === 'boolean') {
         this.locked = msg.locked;
