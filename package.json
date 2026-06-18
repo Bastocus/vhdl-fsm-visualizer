@@ -2,7 +2,7 @@
   "name": "vhdl-fsm-diagram",
   "displayName": "VHDL FSM Diagram",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "Bastocus",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -77,16 +77,6 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh the diagram when the file is saved"
-        },
-        "vhdl-fsm-diagram.theme": {
-          "type": "string",
-          "enum": [
-            "dark",
-            "light",
-            "auto"
-          ],
-          "default": "auto",
-          "description": "Color theme for the FSM diagram"
         }
       }
     }

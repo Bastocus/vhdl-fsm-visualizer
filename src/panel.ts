@@ -8,10 +8,12 @@ export class FsmPanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _docUri: vscode.Uri | undefined;
+  private _lightTheme: boolean | null = null;
+  public locked: boolean = false;
 
   public static createOrShow(extensionUri: vscode.Uri, fsms: ParsedFsm[], title: string, docUri?: vscode.Uri, preserveFocus = false): void {
     const col = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.One;
-    if (FsmPanel.currentPanel) {
+    if (FsmPanel.currentPanel && !FsmPanel.currentPanel.locked) {
       FsmPanel.currentPanel._panel.reveal(col, preserveFocus);
       FsmPanel.currentPanel._docUri = docUri;
       FsmPanel.currentPanel._update(fsms, title);
@@ -33,6 +35,12 @@ export class FsmPanel {
     this._panel.webview.onDidReceiveMessage(async (msg: any) => {
       if (msg.command === 'goToLine' && typeof msg.line === 'number') {
         await this._goToLine(msg.line);
+      }
+      if (msg.type === 'themeChange' && typeof msg.isLight === 'boolean') {
+        this._lightTheme = msg.isLight;
+      }
+      if (msg.type === 'lockChange' && typeof msg.locked === 'boolean') {
+        this.locked = msg.locked;
       }
     }, null, this._disposables);
   }
@@ -75,8 +83,8 @@ export class FsmPanel {
   }
 
   private _getHtml(fsms: ParsedFsm[], title: string): string {
-    const config        = vscode.workspace.getConfiguration('vhdl-fsm-diagram');
-    const themeSetting  = config.get<string>('theme', 'auto');
+    const themeHint = this._lightTheme === null ? 'auto'
+                    : this._lightTheme ? 'light' : 'dark';
     const fsmData       = JSON.stringify(fsms);
 
     return `<!DOCTYPE html>
@@ -234,6 +242,16 @@ body.light .tp-line-link:hover{color:#3b82f6;}
   <button class="btn" onclick="resetZoom()">Reset</button>
   <div class="sep"></div>
   <button class="btn" onclick="exportSvg()">Export SVG</button>
+  <div class="sep"></div>
+  <button class="btn" id="theme-btn" onclick="toggleTheme()">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 1v12a6 6 0 000-12z"/></svg>
+    Theme
+  </button>
+  <div class="sep"></div>
+  <button class="btn" id="lock-btn" onclick="toggleLock()" title="Lock diagram (disable auto-updates)">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11 7H5V5a3 3 0 016 0v2zm1 0V5A4 4 0 004 5v2H3v7h10V7h-1z"/></svg>
+    Lock
+  </button>
   <span class="hint">Scroll=zoom &middot; Drag=pan &middot; Click state or label for details &middot; Ctrl+Click to go to source</span>
 </div>
 
@@ -250,31 +268,58 @@ body.light .tp-line-link:hover{color:#3b82f6;}
 
 const vscodeApi = acquireVsCodeApi();
 const FSM_DATA     = ${fsmData};
-const THEME_SETTING= "${themeSetting}";
+const THEME_SETTING= "${themeHint}";
 
 const IS_LIGHT = THEME_SETTING==='light' ||
   (THEME_SETTING==='auto' && window.matchMedia('(prefers-color-scheme:light)').matches);
 if (IS_LIGHT) document.body.classList.add('light');
 
-const C = IS_LIGHT ? {
-  bg:'#f0f4ff', stateFill:'#dde8ff', stateStroke:'#2563eb',
-  stateSelFill:'#2563eb', stateShadow:'rgba(37,99,235,0.30)',
-  text:'#1e2030', textMuted:'#5a6483',
-  accent:'#2563eb', accent2:'#7c3aed',
-  edgeColor:'#64748b', edgeDim:'#c5d0e8',
-  labelBg:'#ffffff', labelBorder:'#c5d0e8', labelHlBorder:'#2563eb',
-  labelText:'#64748b', labelTextHl:'#2563eb',
-  initialColor:'#059669',
-} : {
-  bg:'#0f1117', stateFill:'#1e2235', stateStroke:'#4f9cf9',
-  stateSelFill:'#4f9cf9', stateShadow:'rgba(79,156,249,0.30)',
-  text:'#e2e8f0', textMuted:'#8892a4',
-  accent:'#4f9cf9', accent2:'#a78bfa',
-  edgeColor:'#94a3b8', edgeDim:'#2e3350',
-  labelBg:'#1a1d27', labelBorder:'#2e3350', labelHlBorder:'#4f9cf9',
-  labelText:'#8892a4', labelTextHl:'#4f9cf9',
-  initialColor:'#34d399',
-};
+function buildC(light) {
+  return light ? {
+    bg:'#f0f4ff', stateFill:'#dde8ff', stateStroke:'#2563eb',
+    stateSelFill:'#2563eb', stateShadow:'rgba(37,99,235,0.30)',
+    text:'#1e2030', textMuted:'#5a6483',
+    accent:'#2563eb', accent2:'#7c3aed',
+    edgeColor:'#64748b', edgeDim:'#c5d0e8',
+    labelBg:'#ffffff', labelBorder:'#c5d0e8', labelHlBorder:'#2563eb',
+    labelText:'#64748b', labelTextHl:'#2563eb',
+    initialColor:'#059669',
+  } : {
+    bg:'#0f1117', stateFill:'#1e2235', stateStroke:'#4f9cf9',
+    stateSelFill:'#4f9cf9', stateShadow:'rgba(79,156,249,0.30)',
+    text:'#e2e8f0', textMuted:'#8892a4',
+    accent:'#4f9cf9', accent2:'#a78bfa',
+    edgeColor:'#94a3b8', edgeDim:'#2e3350',
+    labelBg:'#1a1d27', labelBorder:'#2e3350', labelHlBorder:'#4f9cf9',
+    labelText:'#8892a4', labelTextHl:'#4f9cf9',
+    initialColor:'#34d399',
+  };
+}
+
+let isLight = IS_LIGHT;
+let C = buildC(isLight);
+
+function toggleTheme(){
+  isLight=!isLight;
+  if(isLight) document.body.classList.add('light');
+  else document.body.classList.remove('light');
+  C=buildC(isLight);
+  const btn=document.getElementById('theme-btn');
+  if(btn) btn.title=isLight?'Switch to dark theme':'Switch to light theme';
+  render();
+  vscodeApi.postMessage({type:'themeChange',isLight});
+}
+
+let isLocked=false;
+function toggleLock(){
+  isLocked=!isLocked;
+  const btn=document.getElementById('lock-btn');
+  if(btn){
+    btn.title=isLocked?'Unlock diagram (enable auto-updates)':'Lock diagram (disable auto-updates)';
+    btn.style.color=isLocked?C.accent:'';
+  }
+  vscodeApi.postMessage({type:'lockChange',locked:isLocked});
+}
 
 let currentFsm=0, zoom=1, panX=0, panY=0;
 let panning=false, px0=0, py0=0;
@@ -388,7 +433,6 @@ function layout(states){
 
 // ── SVG helpers ───────────────────────────────────────────────────────────
 const NS='http://www.w3.org/2000/svg';
-const R=48;  // state circle radius
 
 function el(tag,attrs){
   const e=document.createElementNS(NS,tag);
@@ -488,6 +532,8 @@ function render(){
 
   toolbar.style.display='flex';
   const fsm=FSM_DATA[currentFsm];
+  const maxLen=fsm.states.length?Math.max(...fsm.states.map(s=>s.name.length)):8;
+  const R=maxLen<=10?48:maxLen<=16?56:maxLen<=22?64:Math.min(80,32+maxLen*2);
   main.innerHTML='';
 
   const wrap=document.createElement('div');
@@ -737,14 +783,20 @@ function render(){
 
     // State name — original case preserved from parser
     const name=state.name;
-    const fs=name.length>12?'14':name.length>8?'15':'16';
+    const fs=name.length>22?'11':name.length>18?'12':name.length>12?'14':name.length>8?'15':'16';
     const lbl=el('text',{
       x:p.x,y:p.y,'text-anchor':'middle','dominant-baseline':'middle',
       fill:isSel?'#ffffff':C.text,
       'font-family':"Consolas,'Cascadia Code','Fira Code',monospace",
       'font-size':fs,'font-weight':'500',
     });
-    if(name.length>14){
+    if(name.length>20){
+      const parts=name.split('_'),t=Math.ceil(parts.length/3);
+      const t1=el('tspan',{x:p.x,dy:'-1.2em'}); t1.textContent=parts.slice(0,t).join('_');
+      const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=parts.slice(t,t*2).join('_');
+      const t3=el('tspan',{x:p.x,dy:'1.2em'});  t3.textContent=parts.slice(t*2).join('_');
+      lbl.appendChild(t1); lbl.appendChild(t2); lbl.appendChild(t3);
+    } else if(name.length>14){
       const parts=name.split('_'), h=Math.ceil(parts.length/2);
       const t1=el('tspan',{x:p.x,dy:'-0.6em'}); t1.textContent=parts.slice(0,h).join('_');
       const t2=el('tspan',{x:p.x,dy:'1.2em'});  t2.textContent=parts.slice(h).join('_');

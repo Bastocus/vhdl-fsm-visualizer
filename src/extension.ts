@@ -35,6 +35,7 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!config.get<boolean>('autoRefresh', true)) return;
     if (!isVhdlDocument(doc)) return;
     if (!FsmPanel.currentPanel) return;
+    if (FsmPanel.currentPanel.locked) return;
     if (doc.uri.toString() !== lastDocUri) return;
 
     const parser = new VhdlFsmParser();
@@ -55,7 +56,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!isVhdlDocument(editor.document)) return;
       if (!FsmPanel.currentPanel) return;
 
-      openDiagram(editor.document, context.extensionUri, true);
+      updatePanelContent(editor.document);
     }
   );
 
@@ -86,6 +87,20 @@ function openDiagram(
 
   const title = getDocumentTitle(doc);
   FsmPanel.createOrShow(extensionUri, result.fsms, title, doc.uri, preserveFocus);
+}
+
+function updatePanelContent(doc: vscode.TextDocument): void {
+  if (!FsmPanel.currentPanel) return;
+  if (FsmPanel.currentPanel.locked) return;
+
+  lastDocUri = doc.uri.toString();
+  const parser = new VhdlFsmParser();
+  const result = parser.parse(doc.getText());
+  if (result.errors.length > 0) {
+    console.warn('[VHDL FSM] Parse errors:', result.errors);
+  }
+  const title = getDocumentTitle(doc);
+  FsmPanel.currentPanel.update(result.fsms, title, doc.uri);
 }
 
 function isVhdlDocument(doc: vscode.TextDocument): boolean {
