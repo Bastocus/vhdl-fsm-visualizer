@@ -28,13 +28,6 @@ diagram. Source files in `src/` folder (no build step needed to read them).
 - **Automated before every commit** (see Versioning & commit workflow): compile + test verify correctness.
 - Add a fixture for every new corner case before/while fixing it.
 
-### Manual VSIX builds (for local testing)
-Use `build-vsix.ps1` (PowerShell) or `build-vsix.bat` (Command Prompt) to package the extension locally:
-```powershell
-.\build-vsix.ps1
-```
-This creates a `.vsix` file you can install in VS Code via **Extensions → Install from VSIX**. Version in `package.json` determines the VSIX filename, so test against the latest version.
-
 ## Testing strategy
 Each phase includes:
 1. **New fixtures** for the corner cases that phase fixes (e.g., Phase 1 adds `nested_if.vhd`,
@@ -63,9 +56,6 @@ Before each commit, the assistant should:
    - `npm test` (run regression suite; all previously-passing fixtures must stay green)
 3. **Commit** once all checks pass. If any check fails, fix the issue before committing.
 
-The version is also used for VSIX packaging (`build-vsix.ps1`/`build-vsix.bat`), so
-each distinct build must have a new version to avoid conflicts when testing locally.
-
 ## Packaging (.vscodeignore)
 The VSIX must **not** include source (`src/`, `test/`, `docs/`), build configs, or `.claude/`
 (local settings may contain secrets) — only `LICENSE`, `README.md`, `media/`, `out/*.js`, and
@@ -73,25 +63,29 @@ The VSIX must **not** include source (`src/`, `test/`, `docs/`), build configs, 
 to packaging-related files.
 
 ## Releasing to GitHub
-When ready to release a new version:
-1. **Create a GitHub release** with tag `vX.Y.Z` matching the version in `package.json`
-2. **Build the VSIX**: `npx vsce package` (creates `vhdl-fsm-diagram-X.Y.Z.vsix`)
-3. **Upload the VSIX** to the GitHub release as an asset using the API:
-   ```bash
-   # Get the GitHub token from ~/.claude/settings.json (GITHUB_TOKEN field)
-   # POST to https://uploads.github.com/repos/Bastocus/vhdl-fsm-diagram/releases/{release_id}/assets
-   # Use --data-binary (NOT -d @filename) for binary uploads
-   curl -X POST -H "Authorization: token $TOKEN" \
-     -H "Content-Type: application/octet-stream" \
-     --data-binary "@vhdl-fsm-diagram-X.Y.Z.vsix" \
-     "https://uploads.github.com/repos/Bastocus/vhdl-fsm-diagram/releases/{release_id}/assets?name=vhdl-fsm-diagram-X.Y.Z.vsix"
-   ```
-4. **Verify the upload** by downloading and comparing SHA256:
-   - Calculate local SHA256: `sha256sum vhdl-fsm-diagram-X.Y.Z.vsix`
-   - Download from release and verify SHA256 matches
-   - Confirm VSIX is a valid ZIP: `unzip -t vhdl-fsm-diagram-X.Y.Z.vsix` (should report "No errors detected")
-   
-   If checksums don't match, delete the asset and re-upload with `--data-binary`.
+Releases are handled entirely by the GitHub Actions workflow at `.github/workflows/release.yml`.
+No local VSIX build is needed.
 
-**CRITICAL**: Always verify the upload integrity before announcing the release. A corrupted
-VSIX can't be installed by users, and GitHub doesn't catch this automatically.
+**CRITICAL: Never trigger a release autonomously.** Only create a release when the user explicitly
+asks for it (e.g., "release version X", "publish a new release"). Do not trigger a release as a
+side-effect of implementing a feature or bug fix.
+
+### Steps
+1. **Bump the version** in `package.json`, run compile + test, commit and push to `main`.
+2. **Trigger the release workflow** — two options:
+   - **From the GitHub Actions UI**: go to Actions → "Release" → "Run workflow", enter the tag
+     (e.g. `v1.0.3`) and release title, click Run.
+   - **Via the Claude Code MCP tool** (`mcp__github__actions_run_trigger`):
+     ```
+     method: run_workflow
+     workflow_id: release.yml
+     ref: main
+     inputs: { tag: "v1.0.3", title: "v1.0.3 — Description" }
+     ```
+3. The workflow checks out `main`, runs `npm ci`, builds the VSIX with `npx vsce package`,
+   creates a GitHub release with the tag, and uploads the `.vsix` as an asset automatically.
+4. **Verify** the release at `https://github.com/Bastocus/vhdl-fsm-diagram/releases`.
+
+### Workflow file: `.github/workflows/release.yml`
+The workflow is triggered by `workflow_dispatch` only (never runs automatically on push),
+so it cannot accidentally create a release from a work-in-progress commit.

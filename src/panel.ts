@@ -97,43 +97,44 @@ export class FsmPanel {
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f1117;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;
   height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-body.light{background:#f0f4ff;color:#1e2030;}
+body.light{background:#fef7f0;color:#3d3229;}
 
 .header{display:flex;align-items:center;gap:12px;padding:10px 16px;
   background:#1a1d27;border-bottom:1px solid #2e3350;flex-shrink:0;}
-body.light .header{background:#fff;border-color:#c5d0e8;}
+body.light .header{background:#fff;border-color:#e8dccf;}
 .header-icon{width:28px;height:28px;border-radius:6px;
   background:linear-gradient(135deg,#4f9cf9,#a78bfa);
   display:flex;align-items:center;justify-content:center;font-size:15px;}
+body.light .header-icon{background:linear-gradient(135deg,#d97706,#f97316);}
 .header-title{font-size:13px;font-weight:600;flex:1;}
 .header-file{font-size:11px;color:#8892a4;font-family:monospace;}
-body.light .header-file{color:#5a6483;}
+body.light .header-file{color:#8b7355;}
 
 .tab-bar{display:flex;background:#1a1d27;border-bottom:1px solid #2e3350;
   padding:0 16px;flex-shrink:0;}
-body.light .tab-bar{background:#fff;border-color:#c5d0e8;}
+body.light .tab-bar{background:#fff;border-color:#e8dccf;}
 .tab{padding:7px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;
   color:#8892a4;transition:color .15s;user-select:none;}
 .tab:hover{color:#e2e8f0;}
-body.light .tab:hover{color:#1e2030;}
+body.light .tab:hover{color:#3d3229;}
 .tab.active{color:#4f9cf9;border-bottom-color:#4f9cf9;}
-body.light .tab.active{color:#2563eb;border-bottom-color:#2563eb;}
+body.light .tab.active{color:#d97706;border-bottom-color:#d97706;}
 
 .toolbar{display:flex;align-items:center;gap:8px;padding:8px 14px;
   background:#1a1d27;border-bottom:1px solid #2e3350;flex-shrink:0;}
-body.light .toolbar{background:#fff;border-color:#c5d0e8;}
+body.light .toolbar{background:#fff;border-color:#e8dccf;}
 .btn{padding:4px 10px;border-radius:5px;border:1px solid #2e3350;
   background:#22263a;color:#e2e8f0;font-size:11px;cursor:pointer;
   transition:all .15s;display:flex;align-items:center;gap:5px;}
-body.light .btn{border-color:#c5d0e8;background:#e8edf8;color:#1e2030;}
+body.light .btn{border-color:#e8dccf;background:#fef0e4;color:#3d3229;}
 .btn:hover{border-color:#4f9cf9;color:#4f9cf9;}
-body.light .btn:hover{border-color:#2563eb;color:#2563eb;}
+body.light .btn:hover{border-color:#d97706;color:#d97706;}
 .btn svg{width:13px;height:13px;}
 .sep{width:1px;height:20px;background:#2e3350;margin:0 2px;}
-body.light .sep{background:#c5d0e8;}
+body.light .sep{background:#e8dccf;}
 .zoom-lbl{font-size:11px;color:#8892a4;font-family:monospace;min-width:42px;text-align:center;}
 .hint{margin-left:auto;font-size:11px;color:#8892a4;}
-body.light .hint{color:#5a6483;}
+body.light .hint{color:#8b7355;}
 
 .canvas-wrap{flex:1;position:relative;overflow:hidden;cursor:grab;}
 .canvas-wrap.grabbing{cursor:grabbing;}
@@ -147,70 +148,70 @@ body.light .hint{color:#5a6483;}
   color:#e2e8f0;max-width:400px;word-break:break-word;line-height:1.7;
   box-shadow:0 6px 24px rgba(0,0,0,.6);
 }
-body.light #tt{background:#fff;border-color:#2563eb;color:#1e2030;box-shadow:0 4px 18px rgba(0,0,0,.2);}
+body.light #tt{background:#fff;border-color:#d97706;color:#3d3229;box-shadow:0 4px 18px rgba(0,0,0,.12);}
 #tt .tt-header{font-weight:700;color:#4f9cf9;margin-bottom:5px;font-size:12px;}
-body.light #tt .tt-header{color:#2563eb;}
+body.light #tt .tt-header{color:#d97706;}
 #tt .tt-row{padding:1px 0;}
 #tt .tt-row:before{content:'→  ';color:#94a3b8;}
-body.light #tt .tt-row:before{color:#64748b;}
+body.light #tt .tt-row:before{color:#9a6b48;}
 #tt .tt-single{padding:1px 0;}
 
 .info-panel{position:absolute;bottom:14px;right:14px;
   background:#1a1d27;border:1px solid #2e3350;border-radius:10px;
   padding:12px 14px;min-width:180px;font-size:11px;z-index:5;}
-body.light .info-panel{background:#fff;border-color:#c5d0e8;}
+body.light .info-panel{background:#fff;border-color:#e8dccf;}
 .info-panel h4{font-size:11px;font-weight:600;color:#8892a4;
   text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
-body.light .info-panel h4{color:#5a6483;}
+body.light .info-panel h4{color:#8b7355;}
 .info-row{display:flex;justify-content:space-between;gap:12px;padding:3px 0;}
 .info-row .v{color:#4f9cf9;font-family:monospace;font-weight:600;}
-body.light .info-row .v{color:#2563eb;}
+body.light .info-row .v{color:#d97706;}
 .info-note{margin-top:6px;color:#8892a4;font-size:10px;}
 
 .empty{flex:1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:12px;color:#8892a4;}
 .empty-icon{font-size:48px;opacity:.4;}
 .empty h3{font-size:16px;color:#e2e8f0;}
-body.light .empty h3{color:#1e2030;}
+body.light .empty h3{color:#3d3229;}
 .empty p{font-size:13px;max-width:360px;text-align:center;line-height:1.5;}
 .empty code{font-family:monospace;background:#22263a;padding:1px 5px;border-radius:3px;color:#4f9cf9;}
-body.light .empty code{background:#e8edf8;color:#2563eb;}
+body.light .empty code{background:#fef0e4;color:#d97706;}
 
 .transitions-panel{flex-shrink:0;display:flex;flex-direction:column;
   background:#1a1d27;border-top:1px solid #2e3350;}
-body.light .transitions-panel{background:#fff;border-color:#c5d0e8;}
+body.light .transitions-panel{background:#fff;border-color:#e8dccf;}
 .tp-resize{height:6px;flex-shrink:0;cursor:row-resize;}
 .tp-resize:hover{background:rgba(79,156,249,0.25);}
-body.light .tp-resize:hover{background:rgba(37,99,235,0.18);}
+body.light .tp-resize:hover{background:rgba(217,119,6,0.18);}
 .tp-header{display:flex;align-items:center;gap:8px;padding:8px 14px;
   cursor:pointer;user-select:none;font-size:12px;font-weight:600;
   color:#8892a4;flex-shrink:0;}
 .tp-header:hover{color:#e2e8f0;}
-body.light .tp-header{color:#5a6483;}
-body.light .tp-header:hover{color:#1e2030;}
+body.light .tp-header{color:#8b7355;}
+body.light .tp-header:hover{color:#3d3229;}
 .tp-chevron{font-size:10px;display:inline-block;transition:transform .15s;}
 .tp-chevron.collapsed{transform:rotate(-90deg);}
 .tp-body{flex:1;min-height:0;overflow-y:auto;border-top:1px solid #2e3350;}
-body.light .tp-body{border-color:#c5d0e8;}
+body.light .tp-body{border-color:#e8dccf;}
 .tp-table{width:100%;border-collapse:collapse;font-size:11.5px;}
 .tp-table th{position:sticky;top:0;text-align:left;padding:6px 10px;
   background:#1a1d27;color:#8892a4;font-weight:600;
   border-bottom:1px solid #2e3350;}
-body.light .tp-table th{background:#fff;color:#5a6483;border-color:#c5d0e8;}
+body.light .tp-table th{background:#fff;color:#8b7355;border-color:#e8dccf;}
 .tp-table td{padding:5px 10px;border-bottom:1px solid #22263a;white-space:nowrap;}
-body.light .tp-table td{border-color:#eef1fa;}
+body.light .tp-table td{border-color:#fef0e4;}
 .tp-table tr.tp-row:hover{background:rgba(79,156,249,0.12);}
-body.light .tp-table tr.tp-row:hover{background:rgba(37,99,235,0.08);}
+body.light .tp-table tr.tp-row:hover{background:rgba(217,119,6,0.07);}
 .tp-cond{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
   color:#8892a4;white-space:normal;word-break:break-word;}
-body.light .tp-cond{color:#5a6483;}
+body.light .tp-cond{color:#8b7355;}
 .tp-line{font-family:Consolas,'Cascadia Code','Fira Code',monospace;
   color:#8892a4;text-align:left;}
-body.light .tp-line{color:#5a6483;}
+body.light .tp-line{color:#8b7355;}
 .tp-line-link{cursor:pointer;color:#4f9cf9;text-decoration:none;user-select:none;}
-body.light .tp-line-link{color:#2563eb;}
+body.light .tp-line-link{color:#d97706;}
 .tp-line-link:hover{text-decoration:underline;color:#6eb3ff;}
-body.light .tp-line-link:hover{color:#3b82f6;}
+body.light .tp-line-link:hover{color:#b45309;}
 
 .info-link{cursor:pointer;text-decoration:none;}
 .info-link:hover{text-decoration:underline;}
@@ -270,19 +271,19 @@ const vscodeApi = acquireVsCodeApi();
 const FSM_DATA     = ${fsmData};
 const THEME_SETTING= "${themeHint}";
 
-const IS_LIGHT = THEME_SETTING==='light' ||
+let isLight = THEME_SETTING==='light' ||
   (THEME_SETTING==='auto' && window.matchMedia('(prefers-color-scheme:light)').matches);
-if (IS_LIGHT) document.body.classList.add('light');
+if (isLight) document.body.classList.add('light');
 
 function buildC(light) {
   return light ? {
-    bg:'#f0f4ff', stateFill:'#dde8ff', stateStroke:'#2563eb',
-    stateSelFill:'#2563eb', stateShadow:'rgba(37,99,235,0.30)',
-    text:'#1e2030', textMuted:'#5a6483',
-    accent:'#2563eb', accent2:'#7c3aed',
-    edgeColor:'#64748b', edgeDim:'#c5d0e8',
-    labelBg:'#ffffff', labelBorder:'#c5d0e8', labelHlBorder:'#2563eb',
-    labelText:'#64748b', labelTextHl:'#2563eb',
+    bg:'#fef7f0', stateFill:'#fce7d8', stateStroke:'#d97706',
+    stateSelFill:'#d97706', stateShadow:'rgba(217,119,6,0.25)',
+    text:'#3d3229', textMuted:'#8b7355',
+    accent:'#d97706', accent2:'#b45309',
+    edgeColor:'#9a6b48', edgeDim:'#e8dccf',
+    labelBg:'#ffffff', labelBorder:'#e8dccf', labelHlBorder:'#d97706',
+    labelText:'#9a6b48', labelTextHl:'#d97706',
     initialColor:'#059669',
   } : {
     bg:'#0f1117', stateFill:'#1e2235', stateStroke:'#4f9cf9',
@@ -296,7 +297,6 @@ function buildC(light) {
   };
 }
 
-let isLight = IS_LIGHT;
 let C = buildC(isLight);
 
 function toggleTheme(){
@@ -336,6 +336,8 @@ let tableHoverEdge=null;
 // A directed edge's pill/arrow was clicked — filters the transitions table
 // to just that edge WITHOUT dimming the graph (mutually exclusive with 'selected').
 let tableFilterEdge=null;
+// Pill hover-tooltip state: shared across all pills (only one hovered at a time).
+let pillHoverTimer=null, pillHoverShowing=false, pillHoverX=0, pillHoverY=0;
 let transitionsCollapsed=true;
 let transitionsHeight=260;
 // Geometry + DOM refs for the currently-drawn edges, kept around so table
@@ -514,6 +516,7 @@ function render(){
   const main   =document.getElementById('main-content');
   const toolbar=document.getElementById('toolbar');
   hideTooltip();
+  clearTimeout(pillHoverTimer); pillHoverTimer=null; pillHoverShowing=false;
 
   const prevTpBody=document.getElementById('tp-body');
   const prevTpScroll=prevTpBody?prevTpBody.scrollTop:0;
@@ -681,7 +684,9 @@ function render(){
     const isFilteredEdge=tableFilterEdge&&edge.from===tableFilterEdge.from&&edge.to===tableFilterEdge.to;
     const toggleEdgeFilter=(showPopup)=>(ev)=>{
       ev.stopPropagation();
-      selected=null; focusMode=0;
+      // Preserve the state selection when clicking a highlighted edge (one connected to the selected state).
+      // Only clear the selection if the clicked edge is unrelated to the current highlight.
+      if(!(selected && isEdgeHL(edge))){ selected=null; focusMode=0; }
       if(isFilteredEdge){
         // Already filtered to this edge → clear the filter and close the popup
         tableFilterEdge=null;
@@ -729,15 +734,34 @@ function render(){
 
     lbg.addEventListener('click',toggleEdgeFilter(true));
     ltxt.addEventListener('click',toggleEdgeFilter(true));
+    // Store title text for SVG export (injected as <title> in the clone, not live DOM)
+    lbg.setAttribute('data-pill-title',edge.from+' → '+edge.to+': '+edge.conditions.join(', '));
 
-    // Add title to rect for native SVG tooltips
-    const ttl=el('title');
-    const titleText=edge.from+' -> '+edge.to+': '+edge.conditions.join(', ');
-    ttl.textContent=titleText;
-    lbg.insertBefore(ttl,lbg.firstChild);
-
-    eGrp.appendChild(lbg);
-    eGrp.appendChild(ltxt);
+    // ── Pill hover: show tooltip after 0.5s of stillness ──────────────
+    const pillGrp=el('g');
+    pillGrp.appendChild(lbg);
+    pillGrp.appendChild(ltxt);
+    pillGrp.addEventListener('mouseenter',e=>{
+      pillHoverX=e.clientX; pillHoverY=e.clientY;
+      pillHoverTimer=setTimeout(()=>{
+        pillHoverShowing=true;
+        showEdgeTooltip(pillHoverX,pillHoverY,edge);
+      },500);
+    });
+    pillGrp.addEventListener('mousemove',e=>{
+      pillHoverX=e.clientX; pillHoverY=e.clientY;
+      if(pillHoverShowing){ hideTooltip(); pillHoverShowing=false; }
+      clearTimeout(pillHoverTimer);
+      pillHoverTimer=setTimeout(()=>{
+        pillHoverShowing=true;
+        showEdgeTooltip(pillHoverX,pillHoverY,edge);
+      },500);
+    });
+    pillGrp.addEventListener('mouseleave',()=>{
+      clearTimeout(pillHoverTimer); pillHoverTimer=null;
+      if(pillHoverShowing){ hideTooltip(); pillHoverShowing=false; }
+    });
+    eGrp.appendChild(pillGrp);
     geo.lbgEl=lbg;
     geo.ltxtEl=ltxt;
   });
@@ -951,7 +975,7 @@ function showEdgeTooltip(mx, my, edge){
   // Header: "from → to"
   const hdr=document.createElement('div');
   hdr.className='tt-header';
-  hdr.textContent=edge.from+' \u2192 '+edge.to;
+  hdr.textContent=edge.from+' → '+edge.to;
   tt.appendChild(hdr);
 
   // One row per condition
@@ -1105,6 +1129,14 @@ function exportSvg(){
     bgRect.remove();
   }
 
+  // Inject <title> elements into pill rects for native SVG tooltips in exported file
+  clone.querySelectorAll('[data-pill-title]').forEach(rect=>{
+    const t=document.createElementNS('http://www.w3.org/2000/svg','title');
+    t.textContent=rect.getAttribute('data-pill-title');
+    rect.removeAttribute('data-pill-title');
+    rect.insertBefore(t,rect.firstChild);
+  });
+
   // Temporarily add to DOM to calculate bounding box
   clone.style.position='absolute';
   clone.style.left='-9999px';
@@ -1162,6 +1194,7 @@ function exportSvg(){
 
 buildTabs();
 render();
+(()=>{ const b=document.getElementById('theme-btn'); if(b) b.title=isLight?'Switch to dark theme':'Switch to light theme'; })();
 </script>
 </body>
 </html>`;
