@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import { ParsedFsm } from './parser';
+import { escapeHtml } from './panelHelpers';
 
 export class FsmPanel {
   public static currentPanel: FsmPanel | undefined;
@@ -233,7 +234,7 @@ body.light .tp-line-link:hover{color:#b45309;}
 <div class="header">
   <div class="header-icon">&#11041;</div>
   <div class="header-title">FSM Visualizer</div>
-  <div class="header-file">${esc(title)}</div>
+  <div class="header-file">${escapeHtml(title)}</div>
 </div>
 <div id="tab-bar" class="tab-bar"></div>
 <div id="toolbar" class="toolbar" style="display:none">
@@ -1215,8 +1216,4 @@ render();
 </body>
 </html>`;
   }
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

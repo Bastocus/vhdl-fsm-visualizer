@@ -2,7 +2,7 @@
   "name": "vhdl-fsm-diagram",
   "displayName": "VHDL FSM Diagram",
   "description": "Detects finite state machines in VHDL files and renders an interactive diagram with transitions",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "publisher": "Bastocus",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -85,7 +85,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "test": "tsx test/run.ts"
+    "test": "tsx test/run.ts && tsx test/unit.ts",
+    "test:unit": "tsx test/unit.ts"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

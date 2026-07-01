@@ -9,6 +9,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/parser.ts", "test/**/*.ts"],
+  "include": ["src/parser.ts", "src/panelHelpers.ts", "test/**/*.ts"],
   "exclude": ["node_modules", ".vscode-test"]
 }
