@@ -1,5 +1,42 @@
 /**
- * VHDL FSM Parser  v0.5  (Phase 3 — `when others` / multi-label / `:=`)
+ * VHDL FSM Parser  v1.7  (various-fixes Phase 6 — `case?` matching case statement)
+ *
+ * Changes vs v0.8:
+ *  - New `expandRangePart(part, ctx)` helper: when a `when` arm label part matches
+ *    `lo to hi` or `lo downto hi` and both endpoints are known states, expands to the
+ *    inclusive enum-order slice. Range parts are fed into the same per-state loops used
+ *    for `|` multi-label arms and added to `covered` so a sibling `when others` does
+ *    not over-expand.
+ *  - Applied symmetrically in `parseTopCase` (from-state expansion) and `parseCase`
+ *    (selector-condition expansion).
+ *
+ * Changes vs v0.8  (various-fixes Phase 3 — robust RHS: qualified/paren)
+ *
+ * Changes vs v0.7:
+ *  - New `unwrapStateRhs(raw)` helper strips `type'(state)` qualified forms and
+ *    bare-paren `(state)` wrappers so both `next_state <= state_t'(running);` and
+ *    `next_state <= (done);` now emit transitions.
+ *  - The assignment regex in `parseStatements` now captures qualified/paren forms in
+ *    addition to bare words, and both the plain assignment path and the
+ *    `parseConditionalAssign` path route through `unwrapStateRhs`.
+ *
+ * Changes vs v0.7  (various-fixes Phase 2 — conditional signal assignment)
+ *
+ * Changes vs v0.6:
+ *  - `parseStatements` recognises `x <= a when c else b when c2 else d;` (LRM
+ *    `conditional_waveforms`), including the `:=` variable form, via
+ *    `parseConditionalAssign`. Each branch emits a transition guarded by the
+ *    negation of every earlier branch's condition, mirroring `parseIf`'s
+ *    elsif/else negation chain.
+ *
+ * Changes vs v0.5 (various-fixes Phase 1):
+ *  - `splitCaseArms` no longer treats every `\bwhen\b … =>` as an arm boundary. A
+ *    `when` only starts a new arm if the nearest preceding significant token is `is`
+ *    (a `case … is` header) or `;` (end of the previous statement) — see
+ *    `isArmStartWhen`. This stops a conditional/selected assignment (`x <= a when c
+ *    else b;`) or a loop's `exit`/`next … when cond;` from being mistaken for an arm
+ *    label, which previously let the non-greedy `=>` search swallow forward into the
+ *    next real arm and silently drop it.
  *
  * Changes vs v0.4 (Phase 3, Part C):
  *  - Top-level `when others =>` arms expand to one transition set per *uncovered*
@@ -224,13 +261,13 @@ export class VhdlFsmParser {
     };
 
     const sigAlt = sig.names.map(s => escapeRegex(s.toLowerCase())).join('|');
-    const headerRe = new RegExp(`\\bcase\\s+(${sigAlt})\\s+is\\b`, 'g');
+    const headerRe = new RegExp(`\\bcase\\??\\s+(${sigAlt})\\s+is\\b`, 'g');
     let selector: string | undefined;
     let caseLine: number | undefined;
     let fallbackCaseLine: number | undefined;
     let hm: RegExpExecArray | null;
     while ((hm = headerRe.exec(this.normalised)) !== null) {
-      const selStart = hm.index + /^case\s+/.exec(hm[0])![0].length;
+      const selStart = hm.index + /^case\??\s+/.exec(hm[0])![0].length;
       const thisCaseLine = this.offsetToLine(hm.index);
       if (selector === undefined) {
         selector = this.originalAt(selStart, hm[1].length);
@@ -248,7 +285,117 @@ export class VhdlFsmParser {
         caseLine = thisCaseLine;
       }
     }
+    // Phase 5: scan for `with <sel> select <target> <= … ;` anywhere in the source.
+    const selInfo = this.parseSelectedAssign(sig, ctx);
+    if (selector === undefined && selInfo.selector !== undefined) selector = selInfo.selector;
+    if (caseLine === undefined && selInfo.caseLine !== undefined) caseLine = selInfo.caseLine;
+
     return { transitions: ctx.out, selector, caseLine: caseLine ?? fallbackCaseLine, stateLines: ctx.stateLines };
+  }
+
+  /**
+   * Scan the whole source for `with <sel> select <target> <= <selected_waveforms> ;`
+   * where both `sel` and `target` are signals of the same FSM group.
+   * Each `val when choices` clause maps choices (from-states) → val (to-state).
+   * `when others` expands to every state not named by a sibling explicit choice.
+   * Returns the selector signal name and statement line (for FSM metadata), if found.
+   */
+  private parseSelectedAssign(
+    sig: FsmSignal,
+    ctx: FsmCtx,
+  ): { selector?: string; caseLine?: number } {
+    const sigAlt = sig.names.map(s => escapeRegex(s.toLowerCase())).join('|');
+    const re = new RegExp(
+      `\\bwith\\s+(${sigAlt})\\s+select\\s+(${sigAlt})\\s*<=`,
+      'g',
+    );
+    let result: { selector?: string; caseLine?: number } = {};
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(this.normalised)) !== null) {
+      const stmtOffset = m.index;
+      const selLower   = m[1];
+      const afterLe    = m.index + m[0].length;
+
+      // Find the terminating semicolon at paren depth 0.
+      let depth = 0;
+      let semiPos = -1;
+      for (let i = afterLe; i < this.normalised.length; i++) {
+        const c = this.normalised[i];
+        if (c === '(') depth++;
+        else if (c === ')') depth--;
+        else if (c === ';' && depth === 0) { semiPos = i; break; }
+      }
+      if (semiPos < 0) continue;
+
+      // Split the body into comma-separated clauses at paren depth 0.
+      const clauseTexts: string[] = [];
+      let cur = '';
+      let d = 0;
+      for (let i = afterLe; i < semiPos; i++) {
+        const c = this.normalised[i];
+        if (c === '(') { d++; cur += c; }
+        else if (c === ')') { d--; cur += c; }
+        else if (c === ',' && d === 0) { clauseTexts.push(cur); cur = ''; }
+        else cur += c;
+      }
+      if (cur.trim()) clauseTexts.push(cur);
+
+      // Parse each clause into { val, choices }.
+      interface Clause { val: string; choices: string; }
+      const clauses: Clause[] = [];
+      const covered = new Set<string>();
+
+      for (const text of clauseTexts) {
+        const wi = text.search(/\bwhen\b/);
+        if (wi < 0) continue;
+        const val     = text.slice(0, wi).trim();
+        const choices = text.slice(wi + 4).trim();
+        clauses.push({ val, choices });
+        if (choices !== 'others') {
+          for (const part of choices.split('|')) {
+            const p = part.trim();
+            const range = this.expandRangePart(p, ctx);
+            if (range.length > 0) range.forEach(s => covered.add(s));
+            else if (ctx.knownStates.has(p)) covered.add(p);
+          }
+        }
+      }
+
+      // Emit transitions.
+      for (const { val, choices } of clauses) {
+        const toLower = this.unwrapStateRhs(val);
+        if (toLower === null || !ctx.knownStates.has(toLower)) continue;
+        const toState = ctx.stateOrig.get(toLower)!;
+
+        let fromStates: string[];
+        if (choices === 'others') {
+          fromStates = [...ctx.knownStates].filter(s => !covered.has(s));
+        } else {
+          fromStates = [];
+          for (const part of choices.split('|')) {
+            const p = part.trim();
+            const range = this.expandRangePart(p, ctx);
+            if (range.length > 0) fromStates.push(...range);
+            else if (ctx.knownStates.has(p)) fromStates.push(p);
+          }
+        }
+        for (const fromLower of fromStates) {
+          this.emit(ctx.stateOrig.get(fromLower)!, toState, [], stmtOffset, ctx);
+        }
+      }
+
+      // Record selector/caseLine for the first matched statement.
+      if (result.selector === undefined) {
+        result = {
+          selector: this.originalAt(
+            m.index + /^\bwith\s+/.exec(m[0])![0].length,
+            selLower.length,
+          ),
+          caseLine: this.offsetToLine(stmtOffset),
+        };
+      }
+    }
+    return result;
   }
 
   /**
@@ -268,7 +415,12 @@ export class VhdlFsmParser {
       if (labelLower === 'others') continue;
       for (const part of labelLower.split('|')) {
         const p = part.trim();
-        if (ctx.knownStates.has(p)) covered.add(p);
+        const range = this.expandRangePart(p, ctx);
+        if (range.length > 0) {
+          for (const s of range) covered.add(s);
+        } else if (ctx.knownStates.has(p)) {
+          covered.add(p);
+        }
       }
     }
 
@@ -284,9 +436,12 @@ export class VhdlFsmParser {
       }
       for (const part of labelLower.split('|')) {
         const p = part.trim();
-        if (!ctx.knownStates.has(p)) continue;
-        if (!ctx.stateLines.has(p)) ctx.stateLines.set(p, this.offsetToLine(arm.labelStart));
-        this.parseStatements(arm.bodyStart, arm.bodyEnd, [], ctx.stateOrig.get(p)!, ctx);
+        const range = this.expandRangePart(p, ctx);
+        const states = range.length > 0 ? range : ctx.knownStates.has(p) ? [p] : [];
+        for (const stateLower of states) {
+          if (!ctx.stateLines.has(stateLower)) ctx.stateLines.set(stateLower, this.offsetToLine(arm.labelStart));
+          this.parseStatements(arm.bodyStart, arm.bodyEnd, [], ctx.stateOrig.get(stateLower)!, ctx);
+        }
       }
     }
   }
@@ -298,6 +453,8 @@ export class VhdlFsmParser {
    *   - `if … then … [elsif … then …] [else …] end if`
    *   - `case … is … when … => … end case`
    *   - `<sig> <= <state> ;` assignment
+   *   - `<sig> <= <state> when <cond> [else <state> when <cond>]… [else <state>] ;`
+   *     conditional assignment (`conditional_waveforms`)
    * Each `if`/`case` is consumed whole (up to its matching `end`), so the loop only
    * ever sees constructs at the current depth; nested ones are handled by recursion.
    */
@@ -311,8 +468,8 @@ export class VhdlFsmParser {
     const sigAlt = [...ctx.assignSigs].map(escapeRegex).join('|');
     const re = new RegExp(
       `\\bif\\b\\s+([\\s\\S]*?)\\s+\\bthen\\b` +
-      `|\\bcase\\b\\s+([\\s\\S]*?)\\s+\\bis\\b` +
-      `|\\b(?:${sigAlt})\\s*(?:<=|:=)\\s*(\\w+)\\s*;`,
+      `|\\bcase\\??\\s+([\\s\\S]*?)\\s+\\bis\\b` +
+      `|\\b(?:${sigAlt})\\s*(?:<=|:=)\\s*(\\w+'\\(\\w+\\)|\\(\\w+\\)|\\w+)`,
       'g',
     );
     re.lastIndex = start;
@@ -327,21 +484,151 @@ export class VhdlFsmParser {
         const stop     = endIf < 0 ? end : endIf;
         this.parseIf(cond, thenEnd, stop, conds, fromState, ctx);
         re.lastIndex = this.tokenEnd(stop, /\bend\s+if\b/);
-      } else if (/^case\b/.test(m[0])) {
-        // ── case ──
-        const selStart = m.index + /^case\s+/.exec(m[0])![0].length;
+      } else if (/^case\??/.test(m[0])) {
+        // ── case / case? ──
+        const selStart = m.index + /^case\??\s+/.exec(m[0])![0].length;
         const headEnd  = m.index + m[0].length;
         const endCase  = this.findMatchingEndCase(headEnd);
         const stop     = endCase < 0 ? end : endCase;
         this.parseCase(selStart, m[2].length, headEnd, stop, conds, fromState, ctx);
-        re.lastIndex = this.tokenEnd(stop, /\bend\s+case\b/);
+        re.lastIndex = this.tokenEnd(stop, /\bend\s+case\??/);
       } else {
-        // ── assignment ──
-        const targetLower = m[3].toLowerCase();
-        if (ctx.knownStates.has(targetLower)) {
-          this.emit(fromState, ctx.stateOrig.get(targetLower)!, conds, m.index, ctx);
+        // ── assignment: bare word, qualified, paren-wrapped, or `when … else` chain ──
+        const rhsRaw      = m[3];
+        const targetLower = this.unwrapStateRhs(rhsRaw);
+        const afterWord   = m.index + m[0].length;
+        const next        = this.skipWs(afterWord);
+        if (this.matchesAt(/when\b/, next)) {
+          re.lastIndex = this.parseConditionalAssign(rhsRaw, fromState, conds, ctx, m.index, next);
+        } else if (this.normalised[next] === ';') {
+          if (targetLower !== null && ctx.knownStates.has(targetLower)) {
+            this.emit(fromState, ctx.stateOrig.get(targetLower)!, conds, m.index, ctx);
+          }
+          re.lastIndex = next + 1;
         }
       }
+    }
+  }
+
+  /** Index of the first non-whitespace character at or after `idx`. */
+  private skipWs(idx: number): number {
+    let i = idx;
+    while (i < this.normalised.length && /\s/.test(this.normalised[i])) i++;
+    return i;
+  }
+
+  /** True if `re` matches `this.normalised` starting exactly at `idx`. */
+  private matchesAt(re: RegExp, idx: number): boolean {
+    const sticky = new RegExp(re.source, 'y');
+    sticky.lastIndex = idx;
+    return sticky.test(this.normalised);
+  }
+
+  /**
+   * Strip a qualified (`type'(state)`) or parenthesized (`(state)`) wrapper from
+   * an assignment RHS captured by the regex, and return the lowercased inner
+   * identifier. Returns null if the string doesn't match any supported form.
+   */
+  private unwrapStateRhs(raw: string): string | null {
+    const s = raw.trim();
+    // type'(state) — qualified expression
+    const qual = /^\w+'\((\w+)\)$/.exec(s);
+    if (qual) return qual[1].toLowerCase();
+    // (state) — parenthesized
+    const paren = /^\((\w+)\)$/.exec(s);
+    if (paren) return paren[1].toLowerCase();
+    // bare identifier
+    if (/^\w+$/.test(s)) return s.toLowerCase();
+    return null;
+  }
+
+  /**
+   * Expand a single arm-label part that may be a range (`lo to hi` / `lo downto hi`).
+   * Returns the inclusive list of *lowercase* state names in declaration order (or
+   * reversed for `downto`). If the part is not a range, or its endpoints are not known
+   * states, returns an empty array (caller falls back to exact-match logic).
+   */
+  private expandRangePart(part: string, ctx: FsmCtx): string[] {
+    const m = /^(\w+)\s+(to|downto)\s+(\w+)$/i.exec(part.trim());
+    if (!m) return [];
+    const lo = m[1].toLowerCase();
+    const hi = m[3].toLowerCase();
+    const dir = m[2].toLowerCase();
+    const ordered = [...ctx.knownStates]; // insertion order = enum declaration order
+    const loIdx = ordered.indexOf(lo);
+    const hiIdx = ordered.indexOf(hi);
+    if (loIdx < 0 || hiIdx < 0) return [];
+    const [from, to] = dir === 'downto' ? [hiIdx, loIdx] : [loIdx, hiIdx];
+    if (from > to) return [];
+    const slice = ordered.slice(from, to + 1);
+    return dir === 'downto' ? slice.reverse() : slice;
+  }
+
+  /**
+   * Parse a conditional signal/variable assignment's waveform chain, starting right
+   * after the first (bare-word) value, at the `when` keyword:
+   *   `<target> <= val0 when cond0 else val1 when cond1 else … valN ;`
+   * Emits one transition per branch, each guarded by the negation of every earlier
+   * branch's condition (mirroring `parseIf`'s elsif/else negation chain):
+   *   branch k: conds + [not(cond0) … not(cond_{k-1}), condK]
+   *   trailing valN (no `when`): conds + [not(cond0) … not(condLast)]
+   * Returns the offset just past the terminating `;`, for the caller to resume
+   * scanning from.
+   */
+  private parseConditionalAssign(
+    firstVal:    string,
+    fromState:   string,
+    conds:       string[],
+    ctx:         FsmCtx,
+    stmtStart:   number,
+    whenIdx:     number,
+  ): number {
+    const tokenRe = /\(|\)|\bwhen\b|\belse\b|;/g;
+    let depth = 0;
+    const nextTopLevel = (from: number): { token: string; index: number } | null => {
+      tokenRe.lastIndex = from;
+      let mm: RegExpExecArray | null;
+      while ((mm = tokenRe.exec(this.normalised)) !== null) {
+        if (mm[0] === '(') { depth++; continue; }
+        if (mm[0] === ')') { depth--; continue; }
+        if (depth !== 0) continue;
+        return { token: mm[0], index: mm.index };
+      }
+      return null;
+    };
+
+    const priorConds: string[] = [];
+    let curVal = firstVal;
+    let pos = whenIdx + 4; // past "when"
+
+    for (;;) {
+      const elseTok = nextTopLevel(pos);
+      if (!elseTok || elseTok.token !== 'else') return this.normalised.length; // malformed
+      const condText = this.fmtCond(this.originalAt(pos, elseTok.index - pos));
+      pos = elseTok.index + 4; // past "else"
+
+      const guard = [...priorConds.map(c => this.negate(c)), condText];
+      const valLower = this.unwrapStateRhs(curVal);
+      if (valLower !== null && ctx.knownStates.has(valLower)) {
+        this.emit(fromState, ctx.stateOrig.get(valLower)!, conds.concat(guard), stmtStart, ctx);
+      }
+      priorConds.push(condText);
+
+      const nextTok = nextTopLevel(pos);
+      if (!nextTok) return this.normalised.length; // malformed
+      const valText = this.originalAt(pos, nextTok.index - pos).trim();
+
+      if (nextTok.token === ';') {
+        const lastLower = this.unwrapStateRhs(valText);
+        if (lastLower !== null && ctx.knownStates.has(lastLower)) {
+          const elseGuard = priorConds.map(c => this.negate(c));
+          this.emit(fromState, ctx.stateOrig.get(lastLower)!, conds.concat(elseGuard), stmtStart, ctx);
+        }
+        return nextTok.index + 1; // past ";"
+      }
+      if (nextTok.token !== 'when') return nextTok.index + nextTok.token.length; // malformed
+      curVal = valText;
+      pos = nextTok.index + 4; // past "when"
     }
   }
 
@@ -363,14 +650,14 @@ export class VhdlFsmParser {
     interface Seg { kind: 'if' | 'elsif' | 'else'; cond?: string; bodyStart: number; bodyEnd: number; }
     const segs: Seg[] = [{ kind: 'if', cond: c0, bodyStart: thenEnd, bodyEnd: endIf }];
 
-    const re = /\bend\s+if\b|\bend\s+case\b|\belsif\b\s+([\s\S]*?)\s+\bthen\b|\belse\b|\bif\b|\bcase\b/g;
+    const re = /\bend\s+if\b|\bend\s+case\??|\belsif\b\s+([\s\S]*?)\s+\bthen\b|\belse\b|\bif\b|\bcase\??/g;
     re.lastIndex = thenEnd;
     let depth = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(this.normalised)) !== null && m.index < endIf) {
       const t = m[0];
       if (/^end/.test(t))                       { depth--; continue; }
-      if (/^if\b/.test(t) || /^case\b/.test(t)) { depth++; continue; }
+      if (/^if\b/.test(t) || /^case\??/.test(t)) { depth++; continue; }
       if (depth !== 0) continue;                // elsif/else belonging to a nested if
 
       segs[segs.length - 1].bodyEnd = m.index;  // close the previous branch
@@ -418,13 +705,22 @@ export class VhdlFsmParser {
     const sel  = this.fmtCond(this.originalAt(selStart, selLen));
     const arms = this.splitCaseArms(bodyStart, bodyEnd);
 
-    // Sibling concrete labels, used to build the `others` negation chain.
+    // Sibling concrete labels (original-case), used to build the `others` negation chain.
+    // Range parts are expanded to individual original-case state names.
     const covered: string[] = [];
     for (const a of arms) {
       const lower = this.normalised.slice(a.labelStart, a.labelStart + a.labelLen).trim();
       if (lower === 'others') continue;
       const orig = this.originalAt(a.labelStart, a.labelLen).trim();
-      for (const part of orig.split('|')) covered.push(part.trim());
+      for (const part of orig.split('|')) {
+        const partLower = part.trim().toLowerCase();
+        const range = this.expandRangePart(partLower, ctx);
+        if (range.length > 0) {
+          for (const s of range) covered.push(ctx.stateOrig.get(s)!);
+        } else {
+          covered.push(part.trim());
+        }
+      }
     }
 
     for (const a of arms) {
@@ -433,11 +729,22 @@ export class VhdlFsmParser {
       if (lower === 'others') {
         selConds = covered.map(v => this.negate(`${sel} = ${v}`));
       } else {
-        const parts = this.originalAt(a.labelStart, a.labelLen).trim()
-          .split('|').map(s => s.trim()).filter(Boolean);
-        selConds = parts.length === 1
-          ? [`${sel} = ${parts[0]}`]
-          : ['(' + parts.map(v => `${sel} = ${v}`).join(' or ') + ')'];
+        // Expand each part (may be a range), collect original-case state names.
+        const orig = this.originalAt(a.labelStart, a.labelLen).trim();
+        const expanded: string[] = [];
+        for (const part of orig.split('|')) {
+          const partLower = part.trim().toLowerCase();
+          const range = this.expandRangePart(partLower, ctx);
+          if (range.length > 0) {
+            for (const s of range) expanded.push(ctx.stateOrig.get(s)!);
+          } else {
+            expanded.push(part.trim());
+          }
+        }
+        const filtered = expanded.filter(Boolean);
+        selConds = filtered.length === 1
+          ? [`${sel} = ${filtered[0]}`]
+          : ['(' + filtered.map(v => `${sel} = ${v}`).join(' or ') + ')'];
       }
       this.parseStatements(a.bodyStart, a.bodyEnd, conds.concat(selConds), fromState, ctx);
     }
@@ -459,7 +766,7 @@ export class VhdlFsmParser {
    * `if`/`case` increment a depth counter so their inner `when`s are skipped.
    */
   private splitCaseArms(start: number, end: number): CaseArm[] {
-    const re = /\bend\s+case\b|\bend\s+if\b|\bcase\b|\bif\b|\bwhen\b\s+([\s\S]*?)\s*=>/g;
+    const re = /\bend\s+case\??|\bend\s+if\b|\bcase\??|\bif\b|\bwhen\b\s+([\s\S]*?)\s*=>/g;
     re.lastIndex = start;
     let depth = 0;
     const arms: CaseArm[] = [];
@@ -467,7 +774,15 @@ export class VhdlFsmParser {
     while ((m = re.exec(this.normalised)) !== null && m.index < end) {
       const t = m[0];
       if (/^end/.test(t))                       { depth--; continue; }
-      if (/^case\b/.test(t) || /^if\b/.test(t)) { depth++; continue; }
+      if (/^case\??/.test(t) || /^if\b/.test(t)) { depth++; continue; }
+      if (!this.isArmStartWhen(m.index)) {
+        // Not a real arm-opening `when` — a conditional/selected assignment or an
+        // `exit`/`next … when` guard. The non-greedy `=>` search may have swallowed
+        // past a real arm's `when … =>`, so resume right after this `when` instead
+        // of after the whole (bogus) match.
+        re.lastIndex = m.index + 4; // "when".length
+        continue;
+      }
       if (depth !== 0) continue;                // `when` of a nested case
 
       const labelStart = m.index + /^when\s+/.exec(t)![0].length;
@@ -478,13 +793,27 @@ export class VhdlFsmParser {
     return arms;
   }
 
+  /**
+   * True when the `when` at `idx` begins a statement — i.e. the nearest preceding
+   * significant token is `is` (a `case … is` header) or `;` (end of the previous
+   * statement). A `when` preceded by an operand/identifier (conditional/selected
+   * assignment) or by `exit`/`next` fails this test and is not an arm boundary.
+   */
+  private isArmStartWhen(idx: number): boolean {
+    let i = idx;
+    while (i > 0 && /\s/.test(this.normalised[i - 1])) i--;
+    if (i === 0) return true;
+    if (this.normalised[i - 1] === ';') return true;
+    return /\bis$/.test(this.normalised.slice(Math.max(0, i - 6), i));
+  }
+
   // ── Block-matching helpers ────────────────────────────────────────────────
   /**
    * Walk forward from `from` in normalised, tracking `case` depth, and
    * return the index of the `end case` that closes depth 1.
    */
   private findMatchingEndCase(from: number): number {
-    const re = /\bend\s+case\b|\bcase\b/g;
+    const re = /\bend\s+case\??|\bcase\??/g;
     re.lastIndex = from;
     let depth = 1;
     let m: RegExpExecArray | null;
