@@ -1,5 +1,5 @@
 /**
- * VHDL FSM Parser  v1.6  (various-fixes Phase 5 — selected signal assignment `with … select`)
+ * VHDL FSM Parser  v1.7  (various-fixes Phase 6 — `case?` matching case statement)
  *
  * Changes vs v0.8:
  *  - New `expandRangePart(part, ctx)` helper: when a `when` arm label part matches
@@ -261,13 +261,13 @@ export class VhdlFsmParser {
     };
 
     const sigAlt = sig.names.map(s => escapeRegex(s.toLowerCase())).join('|');
-    const headerRe = new RegExp(`\\bcase\\s+(${sigAlt})\\s+is\\b`, 'g');
+    const headerRe = new RegExp(`\\bcase\\??\\s+(${sigAlt})\\s+is\\b`, 'g');
     let selector: string | undefined;
     let caseLine: number | undefined;
     let fallbackCaseLine: number | undefined;
     let hm: RegExpExecArray | null;
     while ((hm = headerRe.exec(this.normalised)) !== null) {
-      const selStart = hm.index + /^case\s+/.exec(hm[0])![0].length;
+      const selStart = hm.index + /^case\??\s+/.exec(hm[0])![0].length;
       const thisCaseLine = this.offsetToLine(hm.index);
       if (selector === undefined) {
         selector = this.originalAt(selStart, hm[1].length);
@@ -468,7 +468,7 @@ export class VhdlFsmParser {
     const sigAlt = [...ctx.assignSigs].map(escapeRegex).join('|');
     const re = new RegExp(
       `\\bif\\b\\s+([\\s\\S]*?)\\s+\\bthen\\b` +
-      `|\\bcase\\b\\s+([\\s\\S]*?)\\s+\\bis\\b` +
+      `|\\bcase\\??\\s+([\\s\\S]*?)\\s+\\bis\\b` +
       `|\\b(?:${sigAlt})\\s*(?:<=|:=)\\s*(\\w+'\\(\\w+\\)|\\(\\w+\\)|\\w+)`,
       'g',
     );
@@ -484,14 +484,14 @@ export class VhdlFsmParser {
         const stop     = endIf < 0 ? end : endIf;
         this.parseIf(cond, thenEnd, stop, conds, fromState, ctx);
         re.lastIndex = this.tokenEnd(stop, /\bend\s+if\b/);
-      } else if (/^case\b/.test(m[0])) {
-        // ── case ──
-        const selStart = m.index + /^case\s+/.exec(m[0])![0].length;
+      } else if (/^case\??/.test(m[0])) {
+        // ── case / case? ──
+        const selStart = m.index + /^case\??\s+/.exec(m[0])![0].length;
         const headEnd  = m.index + m[0].length;
         const endCase  = this.findMatchingEndCase(headEnd);
         const stop     = endCase < 0 ? end : endCase;
         this.parseCase(selStart, m[2].length, headEnd, stop, conds, fromState, ctx);
-        re.lastIndex = this.tokenEnd(stop, /\bend\s+case\b/);
+        re.lastIndex = this.tokenEnd(stop, /\bend\s+case\??/);
       } else {
         // ── assignment: bare word, qualified, paren-wrapped, or `when … else` chain ──
         const rhsRaw      = m[3];
@@ -650,14 +650,14 @@ export class VhdlFsmParser {
     interface Seg { kind: 'if' | 'elsif' | 'else'; cond?: string; bodyStart: number; bodyEnd: number; }
     const segs: Seg[] = [{ kind: 'if', cond: c0, bodyStart: thenEnd, bodyEnd: endIf }];
 
-    const re = /\bend\s+if\b|\bend\s+case\b|\belsif\b\s+([\s\S]*?)\s+\bthen\b|\belse\b|\bif\b|\bcase\b/g;
+    const re = /\bend\s+if\b|\bend\s+case\??|\belsif\b\s+([\s\S]*?)\s+\bthen\b|\belse\b|\bif\b|\bcase\??/g;
     re.lastIndex = thenEnd;
     let depth = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(this.normalised)) !== null && m.index < endIf) {
       const t = m[0];
       if (/^end/.test(t))                       { depth--; continue; }
-      if (/^if\b/.test(t) || /^case\b/.test(t)) { depth++; continue; }
+      if (/^if\b/.test(t) || /^case\??/.test(t)) { depth++; continue; }
       if (depth !== 0) continue;                // elsif/else belonging to a nested if
 
       segs[segs.length - 1].bodyEnd = m.index;  // close the previous branch
@@ -766,7 +766,7 @@ export class VhdlFsmParser {
    * `if`/`case` increment a depth counter so their inner `when`s are skipped.
    */
   private splitCaseArms(start: number, end: number): CaseArm[] {
-    const re = /\bend\s+case\b|\bend\s+if\b|\bcase\b|\bif\b|\bwhen\b\s+([\s\S]*?)\s*=>/g;
+    const re = /\bend\s+case\??|\bend\s+if\b|\bcase\??|\bif\b|\bwhen\b\s+([\s\S]*?)\s*=>/g;
     re.lastIndex = start;
     let depth = 0;
     const arms: CaseArm[] = [];
@@ -774,7 +774,7 @@ export class VhdlFsmParser {
     while ((m = re.exec(this.normalised)) !== null && m.index < end) {
       const t = m[0];
       if (/^end/.test(t))                       { depth--; continue; }
-      if (/^case\b/.test(t) || /^if\b/.test(t)) { depth++; continue; }
+      if (/^case\??/.test(t) || /^if\b/.test(t)) { depth++; continue; }
       if (!this.isArmStartWhen(m.index)) {
         // Not a real arm-opening `when` — a conditional/selected assignment or an
         // `exit`/`next … when` guard. The non-greedy `=>` search may have swallowed
@@ -813,7 +813,7 @@ export class VhdlFsmParser {
    * return the index of the `end case` that closes depth 1.
    */
   private findMatchingEndCase(from: number): number {
-    const re = /\bend\s+case\b|\bcase\b/g;
+    const re = /\bend\s+case\??|\bcase\??/g;
     re.lastIndex = from;
     let depth = 1;
     let m: RegExpExecArray | null;
