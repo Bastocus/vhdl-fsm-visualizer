@@ -102,7 +102,7 @@ export class FsmPanel {
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src-elem 'nonce-${nonce}'; script-src-attr 'unsafe-inline';">
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>FSM Diagram</title>
 <style>
