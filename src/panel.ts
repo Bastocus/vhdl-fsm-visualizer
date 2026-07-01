@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 import { ParsedFsm } from './parser';
 
 export class FsmPanel {
@@ -88,12 +89,19 @@ export class FsmPanel {
   private _getHtml(fsms: ParsedFsm[], title: string): string {
     const themeHint = this._lightTheme === null ? 'auto'
                     : this._lightTheme ? 'light' : 'dark';
-    const fsmData       = JSON.stringify(fsms);
+    // Escape < > & so </script> / <!-- can never appear literally in the payload.
+    const fsmData = JSON.stringify(fsms)
+      .replace(/&/g, '\\u0026')
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e');
+    // Per-render nonce for CSP — prevents injected scripts from running.
+    const nonce = crypto.randomBytes(16).toString('base64');
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>FSM Diagram</title>
 <style>
@@ -264,7 +272,7 @@ body.light .tp-line-link:hover{color:#b45309;}
 
 <div id="main-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden;"></div>
 
-<script>
+<script nonce="${nonce}">
 /* ==========================================================================
    All SVG colours are plain hex strings in the C{} object.
    No CSS var() is used inside SVG attribute values.
